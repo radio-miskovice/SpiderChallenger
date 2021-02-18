@@ -11,7 +11,6 @@
 #include "paddles.h"        // need enable_paddle_interrupt()
 
 /** MORSE CODE CONVERSION TABLE 
- * CC-BY
  * How to read code:
  * Each morse code character is binary encoded. It is interpreted from MSB to LSB 
  * (MSB - first dit or dash) 0 = dit, 1 = dash.
@@ -96,7 +95,7 @@ const unsigned char CODE[] = {
     0,           // backslash
     0,           // ]
     0,           // ^ caret
-    0b001101100, // _ UK underscore
+    0b001101100, // _ underscore UK
 };
 
 unsigned long long last_element_ms = 0 ;
@@ -215,9 +214,9 @@ void send_morse_code(unsigned int morse_code)
 {
   byte next;
   byte code = morse_code & 0xFF;
-  if (morse_code == 0)
+  if (morse_code == 0) // invalid morse code - do nothing
     return;
-  if (code == 0x80)
+  if (code == 0x80) // special morse code "space" or "half space" 0x0180
   {
     morse_code = morse_code >> 8;
     // half letter space
@@ -229,7 +228,7 @@ void send_morse_code(unsigned int morse_code)
   while (code != 0x80)
   {
     next = code & 0x80;
-    send_morse_element(next);
+    send_morse_element(next); // any value next > 0 counts as dash
     code *= 2;
   }
   // finally add letterspace
@@ -256,20 +255,26 @@ void send_ascii_char(byte ascii)
   }
 }
 
+/**
+ * @return last morse code played with paddles
+ * As a side effect, the last played character is cleared
+ **/
 byte get_last_paddle_morse() {
   char c = morse_char_keyed ;
   morse_char_keyed = 0 ;
   return c ;
 }
 
+/**
+ * @param source the morse code played by paddles, LSB = last element
+ * @return ASCII char of the morse code, if found
+ */
 char morse2ascii(byte source) {
-  unsigned char morse = 0x80 ;
-  while (source > 1)
-  {
-    morse = (morse>>1) | ((source & 1) << 7) ;
-    source >>= 1 ;
-  }
-  if (morse == 0x80) return ' ';
+  unsigned int target = source*0x100 + 0x80 ;
+  while (target & 0xFE00 ) // do until all significant bits of the source disappear
+    target /= 2 ; // shift right one bit
+  unsigned char morse = target & 0xFF ; // mask off the leftover source stop bit 
+  if (morse == 0x80) return ' '; // unlikely to happen;
   unsigned int size = sizeof(CODE)/sizeof(CODE[0]) ;
   // look up morse code
   for( char result = 0; result < size; result++ ) {
