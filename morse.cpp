@@ -111,8 +111,6 @@ unsigned int ascii2code(char ascii)
     return 0;
   if (ascii == '|')
     return 0x180; // half space
-  if (ascii == ' ')
-    return 0x380; // full space
   if (ascii > 0x60)
     ascii -= 0x20;
   ascii -= 0x20;
