@@ -6,15 +6,18 @@
  *    Rotary: one of the pins must be assignable to INT0 or INT1
  *    Potentiometer - must be analog PIN, assignable to read AD conversion
  **/
-#define PIN_PADDLE_LEFT   5     // D5, PD5, PCINT21, PCI2_vect
-#define PIN_PADDLE_RIGHT  2     // D2, PD2, PCINT18, PCI2_vect
-#define PIN_ROTARY_CLOCK  11    // D3, PD3, INT1
-#define PIN_ROTARY_VALUE  10    // D4, PD4
-#define PIN_ROTARY_SWITCH 0     // D2, PD2, INT0; could also be on PCINT1_vect (14-19) or PCINT2_vect (4-7)
+#define PIN_PADDLE_LEFT   2     // D5, PD5, PCINT21, PCI2_vect
+#define PIN_PADDLE_RIGHT  5     // D2, PD2, PCINT18, PCI2_vect
+#define PIN_ROTARY_CLOCK  10    // D3, PD3, INT1
+#define PIN_ROTARY_VALUE  11    // D4, PD4
+#define PIN_ROTARY_SWITCH A1    // A1 for analog reading
+#define PIN_MODE_LED      9
 // #define PIN_POTENTIOMETER A0    // must be ADC pin A0-A7
 #define PIN_KEY_OUT       13    // preferably D13 to let the diode blink
-#define PIN_PTT_OUT       12    //
+// #define PIN_PTT_OUT       0     //
 #define PIN_SIDETONE      4     // sidetone buzzer output
+
+#define USE_BUTTON_ANALOG
 
 // DO NOT EDIT AFTER THIS LINE!!!
 

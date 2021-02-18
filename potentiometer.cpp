@@ -1,4 +1,11 @@
 
+/**
+ * Potentiometer as speed control, variables and handling
+ * Code adapted from Petr, OK1FIG 
+ * [CC BY-NC-4.0] Creative commons Licence 4.0
+ * https://creativecommons.org/licenses/by-nc/4.0/
+ * Jindrich Vavruska, jindrich@vavruska.cz
+ **/
 #include <Arduino.h>
 #include "pins.h"
 #include "core.h"
@@ -9,8 +16,8 @@
 #define POT_CHECK_INTERVAL_MS 150
 #define POT_CHANGE_THRESHOLD  0.9
 
-/* POTENTIOMETER */
-byte pot_wpm_read_last;
+    /* POTENTIOMETER */
+    byte pot_wpm_read_last;
 unsigned long last_pot_check_time;
 int pot_full_scale_reading;
 bool speed_set_by_pot;
@@ -47,7 +54,7 @@ inline void set_potentiometer_defaults() {
 
 #else // potentiometer not used at all
 
-inline void check_potentiometer() { }
+    inline void check_potentiometer() { }
 inline void set_potentiometer_defaults() {}
 
 #endif 

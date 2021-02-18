@@ -1,5 +1,7 @@
 #include <Arduino.h>
 
+// Core script variables for reference in other source files
+
 /* SPEED */
 extern unsigned int wpm; // CW speed
 extern byte wpm_limit_low;
@@ -19,9 +21,10 @@ extern byte wordspace_length_units;
 extern byte letterspace_length_units;
 extern byte weighting_pct;
 extern bool paddles_swapped;
+extern bool commandMode ;
 
-/* SENDING MODE */
-extern volatile byte sending_mode; // MANUAL_SENDING, AUTOMATIC_SENDING
+    /* SENDING MODE */
+    extern volatile byte sending_mode; // MANUAL_SENDING, AUTOMATIC_SENDING
 extern byte sending_mode_last;
 extern bool paddles_trigger_ptt; // Paddles are allowed to trigger PTT, or not
 
@@ -32,6 +35,8 @@ extern byte being_sent; // SENDING_NOTHING, SENDING_DIT, SENDING_DAH
 extern byte key_state;  // 0 = key up, 1 = key down
 extern byte key_forced_down; // Low-level key down (via immy command)  0: key up; 1: key down; 2 : key+ptt down
 extern volatile bool paddles_touched;
+extern bool letterspace_pending ;
+extern bool wordspace_pending ;
 
 /* POTENTIOMETER */
 extern byte pot_wpm_read_last;

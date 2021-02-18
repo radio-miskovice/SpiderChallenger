@@ -1,3 +1,9 @@
+/**
+ * Paddle variables and handling 
+ * [CC BY-NC-4.0] Creative commons Licence 4.0
+ * https://creativecommons.org/licenses/by-nc/4.0/
+ * Jindrich Vavruska, jindrich@vavruska.cz
+ **/
 #include <avr/io.h>
 #include <Arduino.h>
 
@@ -73,14 +79,14 @@ volatile bool paddles_touched ;
 volatile byte paddle_status ;
 
 // Enables paddle interrupt
-void enable_paddle_int()
+void enable_paddle_interrupt()
 {
   PADDLE_INT_MASK_REG = PADDLE_INT_MASK;
   PCICR |= PADDLE_PCIE_BIT;
 }
 
 // Disables paddle interrupt
-void disable_paddle_int()
+void disable_paddle_interrupt()
 {
   PCICR &= ~(PADDLE_PCIE_BIT);
 }

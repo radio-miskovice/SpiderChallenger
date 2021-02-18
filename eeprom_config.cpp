@@ -1,3 +1,10 @@
+/**
+ * Challenger keyer configuration persistence
+ * Derived from original code by Petr Maly, OK1FIG
+ * [CC BY-NC-4.0] Creative commons Licence 4.0
+ * https://creativecommons.org/licenses/by-nc/4.0/
+ * Jindrich Vavruska, jindrich@vavruska.cz
+ **/
 #include <avr/io.h>
 #include <EEPROM.h>
 #include "pins.h"
@@ -5,12 +12,12 @@
 #include "core_variables.h"
 #include "eeprom_config.h"
 
-void save_config(byte data)
+void save_config(bool erase)
 {
   uint16_t hdr;
   uint8_t  ptr = 0;
 
-  if (data == 0)
+  if (erase)
   {
     hdr = 65535;
     EEPROM_PUT_NEXT(hdr, ptr);
@@ -33,22 +40,14 @@ void save_config(byte data)
     EEPROM_PUT_NEXT(paddles_swapped, ptr);
   }
   // Beep R:
-  tone(PIN_SIDETONE, 400);
-  delay(50);
-  noTone(PIN_SIDETONE);
-  delay(50);
-  tone(PIN_SIDETONE, 400);
-  delay(150);
-  noTone(PIN_SIDETONE);
-  delay(50);
-  tone(PIN_SIDETONE, 400);
-  delay(50);
-  noTone(PIN_SIDETONE);
-  delay(50);
+  for( char i = 2; i > 0;  i--) {
+    tone(PIN_SIDETONE, 400);
+    delay(50 * (1 + 2*(i&1)));
+    noTone(PIN_SIDETONE);
+    delay(50);
+  }
 }
-// --------------------------------------------------------------------------------------------
 
-// --------------------------------------------------------------------------------------------
 void load_config()
 {
   unsigned int hdr = 0;

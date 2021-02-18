@@ -1,9 +1,13 @@
-
-/** SPIDER KEYER VARAIBLES **/
+/**** Challenger keyer core constants and function declarations ****/
 #include <stdint.h>
 
 #define VERSION "1.31" // Dec 2020
 #define MY_MAGIC_HEADER 0xCCCC // Binary 1010 1010 1010 1010
+
+
+// morse element constant
+#define DIT 0
+#define DAH 1
 
 // Values used internally:
 #define IAMBIC_A 1
@@ -21,38 +25,41 @@
 #define FEATURE_ENABLED( features, bit ) \
    ((features) & (1 << (bit)) >> (bit))
 
+// Main function 
 void setup();
 void loop();
-void reset_com();
-void set_defaults();
-void check_potentiometer();
-void check_serial();
-void service_send_buffer();
-void speed_set(int wpm_set);
-void send_dit();
-void send_dah();
+
+// Paddles and keying
+void check_paddle(byte paddle);
+void control_element_duration(unsigned int length, int speed_wpm);
 void key(int state);
-void loop_element_lengths(float lengths, int speed_wpm_in);
-void service_dit_dah_buffers();
-byte pot_value_wpm();
+void service_paddle_buffers();
+
+// PTT handling 
 void ptt(bool state);
 void check_ptt_tail();
-void check_dit_paddle();
-void check_dah_paddle();
-void send_the_dits_and_dahs(String const  char_to_send);
-void send_char(byte cw_char);
+
+// Buffer and memory handling
+void service_send_buffer();
 void clear_send_buffer();
 void remove_from_send_buffer();
 void add_to_send_buffer(byte serial_byte_rcvd);
-void process_command(byte command, byte data, bool buffered_command );
-void check_com();
+byte send_buffer_bytes();
+void send_message();
+
+// Speed control
+void speed_set(int wpm_set);
+
+// Serial communication
+void check_serial();
 void send_response();
 void send_response_bytes(); 
-byte send_buffer_bytes();
 void check_delayed_send_response();
-void left_paddle_change();
-void right_paddle_change();
-void save_config(byte data);
-void load_config();
+
+// Command processor
+void process_command(byte command, byte data, bool buffered_command );
+void check_com();
 void check_button();
-void send_message();
+
+void set_defaults();
+void reset_com(); 

@@ -29,3 +29,5 @@
 
 // Every immediate command must preceeded with this char:
 #define ESCAPE_CHAR 27
+
+// char processProtocol(char x);

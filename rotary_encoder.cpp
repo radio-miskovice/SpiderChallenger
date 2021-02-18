@@ -1,3 +1,9 @@
+/**
+ * Rotary encoder variables and handling 
+ * [CC BY-NC-4.0] Creative commons Licence 4.0
+ * https://creativecommons.org/licenses/by-nc/4.0/
+ * Jindrich Vavruska, jindrich@vavruska.cz
+ **/
 #include <avr/io.h>
 #include <Arduino.h>
 
@@ -5,8 +11,8 @@
 #include "core.h"
 #include "core_variables.h"
 
-volatile int8_t rot_value = 0;
-volatile boolean rot_event_pending = false ;
+volatile int8_t encoder_value = 0;
+volatile boolean encoder_event_pending = false ;
 
 /* Rotary encoder vector and mask calculation */
 #if PIN_ROTARY_CLOCK > 1 && PIN_ROTARY_CLOCK < 8
@@ -45,10 +51,10 @@ volatile boolean rot_event_pending = false ;
 #endif
 
 void check_rotary_encoder() {
-  if( rot_event_pending ) {
-    speed_set(wpm + rot_value);
-    rot_value = 0;
-    rot_event_pending = false ;
+  if( encoder_event_pending ) {
+    speed_set(wpm + encoder_value);
+    encoder_value = 0;
+    encoder_event_pending = false ;
   }
 }
 
@@ -59,7 +65,7 @@ void rotary_interrupt_enable()
 {
   ROT_INT_MASK_REG = ROT_INT_MASK;
   PCICR |= ROT_PCIE_MASK;
-  rot_event_pending = false ;
+  encoder_event_pending = false ;
 }
 
 // Disables paddle interrupt
@@ -70,14 +76,50 @@ void rotary_interrupt_disable()
 
 ISR(ROT_INT_VECTOR)
 {
-  if( !rot_event_pending ) {
+  if( !encoder_event_pending ) {
     byte state = ROT_PINS ;
     if( state & ROT_INT_MASK ) {
       state = (state >> (ROT_VALUE_SHIFT)) & 1 ;
-      rot_value = 1 - 2*state ;
-      rot_event_pending = true ;
+      encoder_value = 1 - 2*state ;
+      encoder_event_pending = true ;
     }
   }
 }
-
 #endif // ROT_PC_INTERRUPT
+
+// class RotaryEncoder {
+//   private:
+//     char clockPin ;
+//     char valuePin ;
+//     char switchPin ;
+//     bool switchIsAnalog ;
+//     unsigned char isrVector ;
+//     unsigned char pcieMask ;
+//     unsigned char pciMaskRegister ;
+//   public:
+//     RotaryEncoder(char theClockPin, char theValuePin)
+//     {
+//       clockPin = theClockPin;
+//       valuePin = theValuePin;
+//       switchPin = -1;
+//     }
+//     RotaryEncoder(char theClockPin, char theValuePin, char theSwitchPin, bool analogMode = false)
+//     {
+//       clockPin = theClockPin;
+//       valuePin = theValuePin;
+//       switchPin = theSwitchPin;
+//       switchIsAnalog = analogMode ;
+//     }
+//     void setupArduino()
+//     {
+//       if (clockPin >= 0) pinMode(clockPin, INPUT_PULLUP);
+//       if (valuePin >= 0) pinMode(valuePin, INPUT_PULLUP);
+//       if (switchPin >= 0) {
+//         if( switchIsAnalog ) pinMode(clockPin, INPUT);
+//         else pinMode(clockPin, INPUT_PULLUP);
+//       }
+//     }
+//     void setupInterrupt() {
+
+//     }
+// };
