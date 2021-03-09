@@ -13,8 +13,8 @@
 #define PIN_ROTARY_SWITCH A1    // A1 for analog reading
 #define PIN_MODE_LED      9
 // #define PIN_POTENTIOMETER A0    // must be ADC pin A0-A7
-#define PIN_KEY_OUT       13    // preferably D13 to let the diode blink
-// #define PIN_PTT_OUT       0     //
+#define PIN_KEY_LINE       13    // preferably D13 to let the diode blink
+#define PIN_PTT_LINE       0     //
 #define PIN_SIDETONE      4     // sidetone buzzer output
 
 #define USE_BUTTON_ANALOG

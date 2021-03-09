@@ -1,0 +1,5 @@
+{
+    "board": "LGT8fx Boards:avr:328",
+    "configuration": "arduino_isp=disable,clock_source=internal,clock=16MHz,variant=modelP",
+    "sketch": "SpiderChallenger.ino"
+}

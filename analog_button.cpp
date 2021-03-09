@@ -6,17 +6,22 @@
  **/
 #include <Arduino.h>
 #include "pins.h"
+#include "analog_button.h"
+#include "core_variables.h"
+#include "core.h"
+#include "protocol.h"
 
+#define BTN_EVENT_SHORT 1
+#define BTN_EVENT_LONG 2
 #define ANALOG_BTN_READ_INTERVAL 10  // minimum interval between two reads
 
+byte buttonEvent = 0 ;
 bool isButtonPressed = false ;
-bool buttonEvent = false ;
-
 unsigned long lastButtonReadMs = 0 ;
 
 void checkAnalogButton() {
   bool pressed ;
-  if( buttonEvent ) {
+  if( buttonEvent > 0 ) {
     lastButtonReadMs = 0 ;
     return ; // do not do anything until event is cleared
   }
@@ -25,9 +30,9 @@ void checkAnalogButton() {
   // if the vale is the same, do nothing
   if( isButtonPressed ) {
     if( pressed ) return ; // was pressed and remains pressed
-    else {
+    else { // button is not pressed 
       isButtonPressed = pressed ;
-      buttonEvent = true ;
+      buttonEvent = (millis() - lastButtonReadMs > 500 ) ? BTN_EVENT_LONG : BTN_EVENT_SHORT ;
       lastButtonReadMs = millis();
     }
   }
@@ -37,5 +42,39 @@ void checkAnalogButton() {
       isButtonPressed = !isButtonPressed ;
       lastButtonReadMs = millis();
     }
+  }
+}
+
+void service_command_button() {
+  if (buttonEvent > 0)
+  {
+    if (isCommandMode || (buttonEvent == BTN_EVENT_LONG))
+    {
+      byte x = 1 - digitalRead(PIN_MODE_LED);
+      digitalWrite(PIN_MODE_LED, x);
+      if (!x)
+      {
+        tone(PIN_SIDETONE, 2048);
+        delay(125);
+        tone(PIN_SIDETONE, 256);
+        delay(125);
+        noTone(PIN_SIDETONE);
+        isCommandMode = false;
+      }
+      else
+      {
+        tone(PIN_SIDETONE, 256);
+        delay(125);
+        tone(PIN_SIDETONE, 2048);
+        delay(125);
+        noTone(PIN_SIDETONE);
+        isCommandMode = true;
+      }
+    }
+    else
+    { // BTN_EVENT_SHORT
+      protocol.sendMessage();
+    }
+    buttonEvent = false;
   }
 }
