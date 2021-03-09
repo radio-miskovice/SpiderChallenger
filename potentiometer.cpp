@@ -31,7 +31,7 @@ void check_potentiometer()
       if ((abs(pot_value_wpm_read - pot_wpm_read_last) > POT_CHANGE_THRESHOLD))
       {
         speed_set_by_pot = true;
-        speed_set(pot_value_wpm_read);
+        setSpeed(pot_value_wpm_read);
         pot_wpm_read_last = pot_value_wpm_read;
       }
       last_pot_check_time = millis();
@@ -41,7 +41,7 @@ void check_potentiometer()
 byte pot_value_wpm()
 {
   int pot_read = analogRead(PIN_POTENTIOMETER);
-  byte return_value = map(pot_read, 0, pot_full_scale_reading, wpm_limit_low, wpm_limit_high);
+  byte return_value = map(pot_read, 0, pot_full_scale_reading, speedMinWpm, speedMaxWpm);
   return return_value;
 }
 

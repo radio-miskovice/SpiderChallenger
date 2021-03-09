@@ -10,6 +10,7 @@
 #include "pins.h"
 #include "core.h"
 #include "core_variables.h"
+#include "rotary_encoder.h"
 
 volatile int8_t encoder_value = 0;
 volatile boolean encoder_event_pending = false ;
@@ -50,11 +51,53 @@ volatile boolean encoder_event_pending = false ;
 #define ROT_VALUE_SHIFT PIN_ROTARY_VALUE - 14
 #endif
 
-void check_rotary_encoder() {
-  if( encoder_event_pending ) {
-    speed_set(wpm + encoder_value);
+RotaryEncoder encoder = RotaryEncoder();
+
+RotaryEncoder::RotaryEncoder( byte defaultValue ) {
+  value = defaultValue ;
+}
+
+void RotaryEncoder::increment( byte n ) { valueIncrement = n ; isEventPending = true; }
+
+void RotaryEncoder::update() {
+  if( isEventPending ) {
+    PCICR &= ~ROT_PCIE_MASK; // disable rotary interrupt while updating
+    value += valueIncrement ;
+    valueIncrement = 0 ;
+    isEventPending = false ;
+    PCICR |= ROT_PCIE_MASK; // enable rotary interrupt
+    if( value < minValue ) value = minValue ;
+    if( value > maxValue ) value = maxValue ;
+  }
+}
+
+void RotaryEncoder::init() {
+  pinMode( PIN_ROTARY_CLOCK, INPUT_PULLUP );
+  pinMode( PIN_ROTARY_VALUE, INPUT_PULLUP );
+  enableInterrupt();
+}
+
+void RotaryEncoder::enableInterrupt() {
+  ROT_INT_MASK_REG = ROT_INT_MASK;
+  PCICR |= ROT_PCIE_MASK;
+  isEventPending = false;
+  valueIncrement = 0;
+}
+
+void RotaryEncoder::disableInterrupt()
+{
+  PCICR &= ~ROT_PCIE_MASK;
+  isEventPending = false ;
+  valueIncrement = 0;
+}
+
+void check_rotary_encoder()
+{
+  if( encoder.isEventPending ) {
+    setSpeed(wpm + encoder_value);
     encoder_value = 0;
     encoder_event_pending = false ;
+    speedIsSetManually = true ; 
   }
 }
 
@@ -76,50 +119,12 @@ void rotary_interrupt_disable()
 
 ISR(ROT_INT_VECTOR)
 {
-  if( !encoder_event_pending ) {
+  if( !encoder.isEventPending ) {
     byte state = ROT_PINS ;
     if( state & ROT_INT_MASK ) {
       state = (state >> (ROT_VALUE_SHIFT)) & 1 ;
-      encoder_value = 1 - 2*state ;
-      encoder_event_pending = true ;
+      encoder.increment( 1 - 2*state );
     }
   }
 }
 #endif // ROT_PC_INTERRUPT
-
-// class RotaryEncoder {
-//   private:
-//     char clockPin ;
-//     char valuePin ;
-//     char switchPin ;
-//     bool switchIsAnalog ;
-//     unsigned char isrVector ;
-//     unsigned char pcieMask ;
-//     unsigned char pciMaskRegister ;
-//   public:
-//     RotaryEncoder(char theClockPin, char theValuePin)
-//     {
-//       clockPin = theClockPin;
-//       valuePin = theValuePin;
-//       switchPin = -1;
-//     }
-//     RotaryEncoder(char theClockPin, char theValuePin, char theSwitchPin, bool analogMode = false)
-//     {
-//       clockPin = theClockPin;
-//       valuePin = theValuePin;
-//       switchPin = theSwitchPin;
-//       switchIsAnalog = analogMode ;
-//     }
-//     void setupArduino()
-//     {
-//       if (clockPin >= 0) pinMode(clockPin, INPUT_PULLUP);
-//       if (valuePin >= 0) pinMode(valuePin, INPUT_PULLUP);
-//       if (switchPin >= 0) {
-//         if( switchIsAnalog ) pinMode(clockPin, INPUT);
-//         else pinMode(clockPin, INPUT_PULLUP);
-//       }
-//     }
-//     void setupInterrupt() {
-
-//     }
-// };

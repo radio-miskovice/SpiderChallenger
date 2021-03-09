@@ -5,10 +5,17 @@
  * https://creativecommons.org/licenses/by-nc/4.0/
  * Jindrich Vavruska, jindrich@vavruska.cz
  **/
+#include <Arduino.h>
 
+#include "pins.h"
 #include "core_variables.h" // need sending_mode
 #include "core.h"           // need control_element_duration()
-#include "paddles.h"        // need enable_paddle_interrupt()
+#include "config.h"
+#include "paddle-interface.h"
+#include "keyer-interface.h"
+#include "morse.h"
+
+MorseEngine morseEngine = MorseEngine();
 
 /** MORSE CODE CONVERSION TABLE 
  * How to read code:
@@ -98,21 +105,20 @@ const unsigned char CODE[] = {
     0b001101100, // _ underscore UK
 };
 
-unsigned long long last_element_ms = 0 ;
-unsigned char morse_char_keyed = 0 ;
+unsigned long last_element_ms = 0 ;
+
+
+// class MorseEngine {
 
 /**
  * @param ascii ASCII letter to be converted 
  * @return zero if ascii is not defined in Morse code, otherwise returns binary morse code
  */
-unsigned int ascii2code(char ascii)
+unsigned int MorseEngine::asciiToCode(char ascii)
 {
-  if (ascii < 0x20 || ascii >= 0x7B)
-    return 0;
-  if (ascii == '|')
-    return 0x180; // half space
-  if (ascii > 0x60)
-    ascii -= 0x20;
+  if (ascii < 0x20 || ascii >= 0x7B) return 0;
+  if (ascii == '|') return 0x180; // half space
+  if (ascii > 0x60) ascii -= 0x20;
   ascii -= 0x20;
   return (CODE[ascii]);
 }
@@ -122,7 +128,7 @@ unsigned int ascii2code(char ascii)
  * Valid codes only for German letters ä, ö, ü and Russian letters ш, ч, ю, я 
  * 
  * @param prefix UTF-8 code page prefix. Only Latin-1 and Cyrillic prefixes are accepted.
- * @param utf8char the second UTF-8 byte. Only German and Russian letters specified above are accepted.
+ * @param utf8Char the second UTF-8 byte. Only German and Russian letters specified above are accepted.
  * @return unsigned char binary morse code for accepted letters, otherwise returns zero (invalid morse code)
  * 
  * Latin-1 letters 
@@ -136,79 +142,83 @@ unsigned int ascii2code(char ascii)
  * Ю U+042E  ю U+044E  D0AE, D0CE : morse code ..-- (binary 0b00111000, hex 0x38)
  * Я U+042F  я U+044F  D0AF, D0CF : morse code .-.- (binary 0b01011000, hex 0x58)
  */
-unsigned char utf8_to_code(unsigned char prefix, unsigned char utf8char)
-{ // TODO
-  unsigned int utf8code = 256 * prefix + utf8char;
-  switch (utf8code)
-  {
-  case 0xC384:
-  case 0xC3A4:
-  case 0xD0AF:
-  case 0xD0CF:
-    return 0x58;
+unsigned int MorseEngine::utf8ToCode(unsigned char prefix, unsigned char utf8Char)
+{
+  unsigned int utf8Code = 256 * prefix + utf8Char;
+  switch (utf8Code) {
+    case 0xC384:
+    case 0xC3A4:
+    case 0xD0AF:
+    case 0xD0CF:
+      return 0x58;
 
-  case 0xC396:
-  case 0xC3B6:
-  case 0xD0A7:
-  case 0xD0C7:
-    return 0xE8;
+    case 0xC396:
+    case 0xC3B6:
+    case 0xD0A7:
+    case 0xD0C7:
+      return 0xE8;
 
-  case 0xC39C:
-  case 0xC3BC:
-  case 0xD0AE:
-  case 0xD0CE:
-    return 0x38;
+    case 0xC39C:
+    case 0xC3BC:
+    case 0xD0AE:
+    case 0xD0CE:
+      return 0x38;
 
-  case 0xD0A8:
-  case 0xD0C8:
-    return 0xF8;
+    case 0xD0A8:
+    case 0xD0C8:
+      return 0xF8;
   }
   return 0;
 }
 
 /** Send DIT & send DAH in a single function and using only integer arithmetic
- * @param dit_or_dah DIT or 0 = dit, anything else = dah 
+ * @param element DIT or 0 = dit, anything else = dah 
  **/
-void send_morse_element(byte element)
-{
-  unsigned int element_length;
-  unsigned int total_length;
-  if (sending_mode == SEND_MODE_PADDLE && morse_char_keyed == 0)
-  { morse_char_keyed = 0x01; } // set start bit
-  if (element == 0) // DIT
+void MorseEngine::sendMorseElement(byte element) {
+  unsigned int elementLength;
+  unsigned int totalLength;
+  unsigned long elapsed = lastElementMs - millis();
+
+  /* if time elapsed since last element + element space > 1.5 unit, convert character
+    * the actual conversion takes place in holdElementDuration() because there is 
+    * plenty of time to complete the complex transformation
+    **/
+  if( elapsed * wpm / 1200 > 150 ) {
+    lastMorseCode = morseCodeEmitted ; // prepare morse code for conversion
+    morseCodeEmitted = 0x01 ;          // prepare empty morse code for new collection
+  }
+  if (paddle.sendingMode == SEND_MODE_PADDLE && morseCodeEmitted == 0) { morseCodeEmitted = 0x01; } // set start bit
+  if (element == DIT) // DIT
   {
-    being_sent = SENDING_DIT;
-    element_length = 100 * weighting_pct / 50;
-    total_length = 200;
-    if (sending_mode == SEND_MODE_PADDLE)
+    keyerInterface.being_sent = EMIT_DIT;
+    elementLength = 100 * config.weightingPct / 50;
+    totalLength = 200;
+    if (paddle.sendingMode == SEND_MODE_PADDLE) { morseCodeEmitted *= 2; } // shift morse code for decoder, LSB set to 0 (dit)
+
+  }
+  else  {
+    keyerInterface.being_sent = EMIT_DAH;
+    elementLength = 6 * config.weightingPct ; // dah:dit = 300, 300 / 50 = 6
+    totalLength = 400;
+    if (paddle.sendingMode == SEND_MODE_PADDLE)
     {
-      morse_char_keyed *= 2;
+      morseCodeEmitted = (morseCodeEmitted * 2) | 0x01; // // shift morse code for decoder, LSB set to 1 (dah)
     }
   }
-  else
-  {
-    being_sent = SENDING_DAH;
-    element_length = dah_to_dit_ratio_pct * weighting_pct / 50;
-    total_length = 400;
-    if (sending_mode == SEND_MODE_PADDLE)
-    {
-      morse_char_keyed = (morse_char_keyed*2) | 0x01; // shift left
-    }
-  }
-  key(1);
-  control_element_duration(element_length, wpm + wpm_dif + wpm_dif_manual);
-  key(0);
-  control_element_duration(total_length - element_length, wpm + wpm_dif + wpm_dif_manual);
-  being_sent = SENDING_NOTHING;
-  sending_mode_last = sending_mode;
-  last_element_ms = millis();
-  letterspace_pending = true ;
+  keyerInterface.setKey( HIGH ); // ex: key(1)
+  keyerInterface.holdElementDuration(elementLength, wpm);
+  keyerInterface.setKey(LOW); // key(0);
+  keyerInterface.holdElementDuration(totalLength - elementLength, wpm);
+  keyerInterface.being_sent = EMIT_NONE;
+  paddle.sendingModeLast = paddle.sendingMode;
+  if(paddle.sendingMode == SEND_MODE_PADDLE) { lastElementMs = millis(); }
+  // letterspace_pending = true ;
 }
 
 /**
  * Send morse code by reading binary bits and sending dits and dahs
  * */
-void send_morse_code(unsigned int morse_code)
+void MorseEngine::sendMorseCode(unsigned int morse_code)
 {
   byte next;
   byte code = morse_code & 0xFF;
@@ -219,64 +229,95 @@ void send_morse_code(unsigned int morse_code)
     morse_code = morse_code >> 8;
     // half letter space
     if (morse_code == 1)
-      control_element_duration(50, wpm);
+      keyerInterface.holdElementDuration(50, wpm);
     else
-      control_element_duration(100 * (wordspace_length_units - letterspace_length_units - 2), wpm);
+      keyerInterface.holdElementDuration(100 * (wordspaceLU - letterspaceLU - 2), wpm);
   }
   while (code != 0x80)
   {
     next = code & 0x80;
-    send_morse_element(next); // any value next > 0 counts as dash
+    sendMorseElement(next+1); // any value next > 0 counts as dash
     code *= 2;
   }
   // finally add letterspace
-  control_element_duration(100 * (letterspace_length_units - 1), wpm);
+  keyerInterface.holdElementDuration(100 * (letterspaceLU - 1), wpm);
 }
 
 /**
  * @param ascii ASCII character to be sent 
  * 
  * If the ascii has no morse code, sending mode is not changed and nothing happens
- * */
-void send_ascii_char(byte ascii)
+ **/
+void MorseEngine::sendAsciiChar(byte ascii)
 {
-  unsigned int morse_code = ascii2code(ascii);
+  unsigned int morse_code = asciiToCode(ascii);
   if (morse_code)
   {
-    sending_mode = SEND_MODE_AUTO;
-    enable_paddle_interrupt();
-    wpm_dif_manual = 0;
-    if (morse_code)
-      send_morse_code(morse_code);
-    else
-      control_element_duration(50, wpm);
+    paddle.sendingMode = SEND_MODE_AUTO;
+    paddle.enableInterrupt();
+    sendMorseCode(morse_code);
   }
+  else
+    keyerInterface.holdElementDuration(50, wpm);
 }
 
 /**
  * @return last morse code played with paddles
  * As a side effect, the last played character is cleared
  **/
-byte get_last_paddle_morse() {
-  char c = morse_char_keyed ;
-  morse_char_keyed = 0 ;
-  return c ;
+byte MorseEngine::getLastCodeFromPaddle()
+{
+  char c = morseCodeEmitted;
+  morseCodeEmitted = 0;
+  return c;
+}
+
+/** @return pointer to decoded manually emitted string 
+ */
+char* MorseEngine::getDecodedString() {
+  return decodedString ;
+}
+
+/** add character to decoded string buffer 
+ * @param ascii character to be appended
+ * **/
+void MorseEngine::appendDecodedCharacter(char ascii) {
+  if( strlen( decodedString ) < DECODER_SIZE ) {
+    byte i = 0;
+    while( i < DECODER_SIZE && decodedString[i] != 0 ) i++ ;
+    if( decodedString[i] == 0 ) {
+      decodedString[i] = ascii ;
+      decodedString[i+1] = 0;
+    }
+  }
 }
 
 /**
- * @param source the morse code played by paddles, LSB = last element
- * @return ASCII char of the morse code, if found
- */
-char morse2ascii(byte source) {
-  unsigned int target = source*0x100 + 0x80 ;
-  while (target & 0xFE00 ) // do until all significant bits of the source disappear
-    target /= 2 ; // shift right one bit
-  unsigned char morse = target & 0xFF ; // mask off the leftover source stop bit 
-  if (morse == 0x80) return ' '; // unlikely to happen;
-  unsigned int size = sizeof(CODE)/sizeof(CODE[0]) ;
+ * Decodes morse code collected from paddles. Collected code has high stop bit
+ * and LSB last morse code element, LSB-aligned. Therefore it must be bit-reversed in order 
+ * to match morse codes in conversion table, MSB-aligned and the stop bit must be moved 
+ * to the lowest bit.
+ * This metthod must be called from holdElementDuration because it takes time.
+ **/
+void MorseEngine::decodeKeyedCharacter()
+{
+  if( lastMorseCode == 0 ) return ; // nothing to do here
+  /* phase 1 - bit inversion */
+  unsigned int target = lastMorseCode * 0x100 + 0x80;
+  while (target & 0xFE00)              // do until all significant bits of the source disappear
+    target /= 2;                       // shift right one bit
+  unsigned char morse = target & 0xFF; // mask off the leftover source stop bit
+  /* phase 2 - morse code lookup in code table */
+  if (morse == 0x80) appendDecodedCharacter( ' ' ); // unlikely to happen;
+  unsigned int size = sizeof(CODE) / sizeof(CODE[0]);
   // look up morse code
-  for( char result = 0; result < size; result++ ) {
-    if( morse == CODE[result] ) return (result+ 0x20);
+  for (unsigned char result = 0; result < size; result++)
+  {
+    if (morse == CODE[result]) {
+      appendDecodedCharacter( CODE[result] + 0x20 );
+      break ;
+    }
   }
-  return 0 ;
+  // if there's no match, nothing happens
+  lastMorseCode = 0 ; // clear conversion buffer
 }
