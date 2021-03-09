@@ -1,4 +1,4 @@
-#Spider Challenger Keyer
+# Spider Challenger Keyer
 
 Based on Arduino Nano. Original motivation was to implement Spider Keyer firmware to work on TinyKeyer hardware. 
 While Spider Keyer uses potentiometer as speed control, TinyKeyer uses rotary encoder. 
