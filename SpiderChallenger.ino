@@ -98,7 +98,7 @@ void setup()
   speedControl->setMaxValue( config.speedMaxWpm );
   speedControl->setMinValue( config.speedMinWpm );
   setSpeed( speedControl->getValue() ); // in case of potentiometer, read potentiometer, otherwise use initial values
-  reset_com();
+  resetInterfaces();
   Serial.begin(57600); // primary_serial_port_baud_rate
   tone(PIN_SIDETONE, 512);
   delay(46);
@@ -130,24 +130,22 @@ void loop()
 }
 
 /* RESET ALL CONTROLS AND OUTPUTS */
-void reset_com()
+void resetInterfaces()
 {
   /* Makes a total reset, puts all to inactive and resets the status flags. Should be called
     in need to fetch the device to a "defined state". */
-  noInterrupts();
   noTone(PIN_SIDETONE);
-  digitalWrite(PIN_KEY_LINE, LOW);
-  protocol.resetSendBuffer();
-  paddle.reset();
+  noInterrupts();
   keyerInterface.forcePtt( false ); // release forced PTT if necessary; set PTT off; set pttTime = 0
   keyerInterface.setPtt( LOW );
   keyerInterface.forceKey( false );   // release forced KEY if necessary; set KEY off
   keyerInterface.setKey( LOW );
+  protocol.resetSendBuffer();
+  paddle.reset();           // clear paddle buffers
+  paddle.enableInterrupt(); // clear paddle semaphores
   wpmPrevious = wpm ;
   paddle.sendingModeLast = SEND_MODE_PADDLE;
   paddle.sendingMode = SEND_MODE_PADDLE;
-  // last_event = 0;
-  paddle.enableInterrupt();
   interrupts();
 }
 

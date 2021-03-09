@@ -98,16 +98,14 @@ void Protocol::execute(byte command, byte data, bool isBuffered)
 
   // force KEY on or off
   case CMD_SET_KEY:
-    if (data == 2)
-      keyerInterface.forcePtt(true);
-    if (data > 0) {
-      keyerInterface.forceKey(true);
-      paddle.reset();
+    fifo.reset();
+    keyerInterface.forcePtt( data == 2 ); 
+    keyerInterface.forceKey( data > 0 ); 
+    if( data == 0 ) {
+      keyerInterface.setKey( LOW ); // unforce KEY
     }
-    else {
-      keyerInterface.forcePtt(false);
-      keyerInterface.forceKey(false);
-    }
+    else
+      paddle.wasTouched = false;
     sendStatus();
     break;
 
@@ -138,7 +136,7 @@ void Protocol::execute(byte command, byte data, bool isBuffered)
 
   // keyer reset
   case CMD_BREAK_IMMY:
-    reset_com();
+    resetInterfaces();
     break;
 
   case CMD_SET_LEAD_TIME:
@@ -168,7 +166,7 @@ void Protocol::execute(byte command, byte data, bool isBuffered)
     break;
 
   case CMD_SET_PADDLES_TRIGGER_PTT:
-    reset_com();
+    resetInterfaces();
     config.paddleTriggerPtt = (data != 0);
     configIsDirty = true;
     break;

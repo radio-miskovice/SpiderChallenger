@@ -34,6 +34,6 @@ void setSpeed(int wpm_set);
 // void check_delayed_send_response();
 
 // Command processor
-void reset_com();
+void resetInterfaces();
 
 #endif
