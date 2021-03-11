@@ -83,7 +83,6 @@
 
 PaddleInterface paddle = PaddleInterface();
 volatile bool paddleBreakIsPending = false;
-bool hasReportedBreak = false ;
 
 void PaddleInterface::setup()
 {
@@ -215,13 +214,10 @@ void PaddleInterface::serviceBuffers()
 
 ISR(PADDLE_INT_VECTOR)
 {
-  intrCount++ ;
   if (!paddleBreakIsPending) // only process if the flag is not set yet
   {
-    breakCount++ ;
     if (protocol.isSendingBuffer()) // only valid if sending from buffer
     {
-      resetCount++ ;
       paddleBreakIsPending = true;
       paddle.wasTouched = true;
       paddle.buffer = 0;

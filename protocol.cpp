@@ -294,9 +294,9 @@ void Protocol::sendStatus(bool forceSend)
     byte statusBits;
     byte wpmByte;
     statusBits = 0x80 ;
-    if( fifo.hasMore() || expectCmd ) 
-      statusBits |= 0x20 ;
+    if( fifo.hasMore() || expectCmd ) statusBits |= 0x20 ;
     statusBits |= (keyerInterface.getInterfaceStatus() << 3);
+    statusBits |= paddle.wasTouched ? 0x04 : 0 ;
     wpmByte = (speedIsSetManually ? wpm : 0) & 0x7F;
     Serial.write(statusBits);
     Serial.write(wpmByte);
