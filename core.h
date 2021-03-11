@@ -5,7 +5,8 @@
 
 #include <stdint.h>
 
-#define VERSION "1.31" // Dec 2020
+#define SPIDER_KEYER_VERSION "1.37" /* Spider Keyer 2020-12-20 */
+#define CHALLENGER_VERSION "1.0.4"  /* Challenger firmware version */
 
 // Shared constants
 #define IAMBIC_A 'A'
@@ -14,21 +15,7 @@
 #define EMIT_DIT 1
 #define EMIT_DAH 2
 
-#define FLAG_ENABLE_PTT 0  // ptt control enabled
-#define FLAG_ENABLE_KEY 1  // keying enabled
-#define FLAG_ENABLE_SPEED_CTL 2  // set speed by manual control enabled
-
-// Buffer and memory handling
-// void send_message();
-void store_message(byte data);
-
-// Speed control
-void setSpeed(int wpm_set);
-
-// Serial communication
-// void check_delayed_send_response();
-
-// Command processor
+void setSpeed(word wpm_set);
 void resetInterfaces();
 
 #endif

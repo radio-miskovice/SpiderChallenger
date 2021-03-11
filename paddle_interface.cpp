@@ -42,7 +42,7 @@
 
 #if (LEFT_GROUP) != (RIGHT_GROUP)
 #error "Left and right paddles are no in the same PCINT group!"
-#endif 
+#endif
 
 #if (RIGHT_GROUP) == 0
 
@@ -74,7 +74,7 @@
 #define PADDLE_INT_MASK ((PADDLE_LEFT_BIT) | (PADDLE_RIGHT_BIT))
 #define PADDLE_PINS PIND
 
-#else 
+#else
 
 #error "Paddle interrupt setup failed"
 // NOTE: if the paddles are not in the same PCINT group, interrupt data will not be generated!
@@ -82,10 +82,11 @@
 #endif
 
 PaddleInterface paddle = PaddleInterface();
-volatile byte paddleState = 0 ;
-bool paddleBreakIsPending = false;
+volatile bool paddleBreakIsPending = false;
+bool hasReportedBreak = false ;
 
-void PaddleInterface::setup() {
+void PaddleInterface::setup()
+{
   pinMode(PIN_PADDLE_LEFT, INPUT_PULLUP);
   pinMode(PIN_PADDLE_RIGHT, INPUT_PULLUP);
 }
@@ -94,55 +95,100 @@ void PaddleInterface::reset()
 {
   buffer = 0;
   isSqueezed = false;
+  wasTouched = false;
 }
 
-    // activate interrupt
+// activate interrupt
 void PaddleInterface::enableInterrupt()
 {
-  if ((PCIFR & PADDLE_PCIE_BIT) == 0)
+  if ((PCIFR & PADDLE_PCIE_BIT) != 0)
   {
-    PADDLE_INT_MASK_REG = PADDLE_INT_MASK;
-    PCIFR &= ~(PADDLE_PCIE_BIT); // delete interrupt flag if it was set
-    PCICR |= PADDLE_PCIE_BIT;
-    reset();
+    PCIFR |= PADDLE_PCIE_BIT ; // delete interrupt flag if it was set
   }
+  PADDLE_INT_MASK_REG = PADDLE_INT_MASK;
+  PCICR |= PADDLE_PCIE_BIT;
+  interrupts();
 }
 
 void PaddleInterface::disableInterrupt()
 {
   PCICR &= ~(PADDLE_PCIE_BIT);
-  PCIFR &= ~(PADDLE_PCIE_BIT); // delete interrupt flag if it was set
+  PCIFR |= PADDLE_PCIE_BIT; // clear interrupt flag if it was set
 }
 
 void PaddleInterface::handleInterrupt()
 {
   if (paddleBreakIsPending)
-  {
-    paddleBreakIsPending = !(digitalRead(PIN_PADDLE_LEFT) && digitalRead(PIN_PADDLE_RIGHT));
+  { bool paddleReleased = digitalRead(PIN_PADDLE_LEFT) && digitalRead(PIN_PADDLE_RIGHT);
+    if( paddleReleased ) {
+      paddleBreakIsPending = false ; // reset pending paddle break flag
+      wasTouched = true ;    // indicate that paddle was touched (important for correct status message)
+      wpm = wpmPrevious ;    // restore previously set speed
+      protocol.sendStatus(); 
+    }
+    else {
+      protocol.resetSendBuffer(); // stop buffer sending
+    }
   }
 }
 
-void PaddleInterface::setSqueeze() {
+void PaddleInterface::setSqueeze()
+{
   isSqueezed = (config.paddleMode == IAMBIC_A) && digitalRead(PIN_PADDLE_LEFT) == LOW && digitalRead(PIN_PADDLE_RIGHT) == LOW;
 }
 
-void PaddleInterface::check(byte paddle)
+/** Check paddle status
+ *  Also detects squeeze condition (both paddles pressed simultaneously).
+ *  Resets paddle break semaphore on release paddles 
+ * 
+ * **/
+void PaddleInterface::check(byte paddleValue)
 {
-  byte pin = (paddle == DIT)
-                 ? (config.isPaddleSwapped ? PIN_PADDLE_LEFT : PIN_PADDLE_RIGHT)
-                 : (config.isPaddleSwapped ? PIN_PADDLE_RIGHT : PIN_PADDLE_LEFT);
-  byte paddle_state = digitalRead(pin);
-  if (paddle_state == 0 && !paddleBreakIsPending) // after paddle break, do not fill dit or dah memory until paddles released
-  {                                               // paddle squeezed, do something
-    buffer |= paddle ;
+  byte paddles = digitalRead(PIN_PADDLE_LEFT) * 2 + digitalRead(PIN_PADDLE_RIGHT);
+  bool keyIsForced = keyerInterface.isKeyForced ; // remember original force state
+  // if paddle break occurred, wait until paddles are released
+  if( paddleBreakIsPending ) {
+    wasTouched = true ;
+    if( paddles == 3 ) { // paddle release condition, completes the break
+      paddleBreakIsPending = false ; // reset break flag
+      protocol.sendStatus();
+    }
+    else { // still waiting for release
+      protocol.resetSendBuffer();
+    }
+    return ; // do nothing while break did not complete
+  }
+
+  paddles = paddles & (config.isPaddleSwapped ? (paddleValue == DIT ? DAH : DIT) : paddleValue);
+  if (paddles == 0) 
+  {
+    if( protocol.isSendingBuffer() ) {
+      paddleBreakIsPending = true ;
+      wasTouched = true ;
+      protocol.resetSendBuffer();
+      return ;
+    }
+    // after paddle break, do not fill dit or dah memory until paddles are released
+    buffer |= paddleValue; // set appropriate paddle bit
+    paddle.wasTouched = true ;
     keyerInterface.forceKey(false); // if the key line was forced, release it
     // Update last_event only if it was set by ptt():
     keyerInterface.resetPttEvent();
-    if( wpmMaxPaddle > 0 && wpm > wpmMaxPaddle ) { wpm = wpmMaxPaddle; }
+    // manual speed limit, if set
+    if (wpmMaxPaddle > 0 && wpm > wpmMaxPaddle)
+    {
+      wpm = wpmMaxPaddle;
+    }
+    if( keyIsForced ) protocol.sendStatus(); 
   }
 }
 
-void PaddleInterface::serviceBuffers() { 
+/**
+ * Emit morse element based on paddle buffers, starting with DIT, followed by DAH
+ * In iambic mode A check paddle release and reset squeeze flag accordingly
+ **/
+void PaddleInterface::serviceBuffers()
+{
   if ((config.paddleMode == IAMBIC_A) && isSqueezed && digitalRead(PIN_PADDLE_LEFT) && digitalRead(PIN_PADDLE_RIGHT)) // release condition
   {
     isSqueezed = false;
@@ -163,14 +209,17 @@ void PaddleInterface::serviceBuffers() {
   }
 }
 
-ISR(PADDLE_INT_VECTOR) { 
-  if( !paddleBreakIsPending ) {
-    paddleBreakIsPending = true;
-    paddle.wasTouched = true;
-    paddle.buffer = 0;
-    paddle.isSqueezed = false ;
-    protocol.resetSendBuffer();
-    PCICR &= ~(PADDLE_PCIE_BIT); // disable further interrupt; must be enabled when Protocol starts sending from buffer 
+ISR(PADDLE_INT_VECTOR)
+{
+  if (!paddleBreakIsPending) // only process if the flag is not set yet
+  {
+    if (protocol.isSendingBuffer()) // only valid if sending from buffer
+    {
+      paddleBreakIsPending = true;
+      paddle.wasTouched = true;
+      paddle.buffer = 0;
+      paddle.isSqueezed = false ;
+      PCICR |= PADDLE_PCIE_BIT; // disable further interrupt; must be enabled when Protocol starts sending from buffer
+    }
   }
 }
-

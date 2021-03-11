@@ -12,12 +12,12 @@ private:
   word pttTime = 0;
   word pttLastEventMs = 0;
   byte pttState = LOW;
-  bool isKeyForced = false;
-  byte key_state = LOW;
-  bool is_key_enabled = true;
+  byte keyState = LOW;
+  bool isKeyEnabled = true;
 
 public:
-  byte being_sent = EMIT_NONE;
+  bool isKeyForced = false;
+  byte currentlyEmitting = EMIT_NONE;
   void setup() ; // HW setup of all ports
   void reset() ; // reset PTT, KEY, being sent
   void enablePtt(bool is_enabled); // enable or disable PTT line action

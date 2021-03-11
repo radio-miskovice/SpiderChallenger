@@ -7,16 +7,17 @@
 
 class Protocol {
   private:
-    char rcvd;
+
     byte cmdBuffer[2];
     byte cmdLength = 0;
-    bool expectCmd = false;
     bool canSendStatus = false;
-    CharacterFIFO fifo;
+    word wasResponded = 0 ;
 
   public:
+    bool expectCmd = false;
+    CharacterFIFO fifo;
     Protocol();
-    void checkCommand();
+    bool isNotCommand(char rcvd);
     void checkInput();
     void execute(byte command, byte data, bool isBuffered);
     bool isSendingBuffer();

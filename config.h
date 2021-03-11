@@ -1,9 +1,14 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-/* CONFIGURATION */
+#include <EEPROM.h>
 
+/* CONFIGURATION */
+#define MAGIC_HEADER   0xCF 
 #define CONFIG_VERSION 2
+
+void saveConfig(bool erase);
+void loadConfig();
 
 struct Config
 {

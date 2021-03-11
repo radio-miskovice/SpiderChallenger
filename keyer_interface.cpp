@@ -10,7 +10,9 @@
 
 #ifndef USE_PTT
 #if defined(PIN_PTT_LINE) && (PIN_PTT_LINE) != 0
+
 #define USE_PTT
+
 #endif
 #endif
 
@@ -62,10 +64,10 @@ void KeyingInterface::enablePtt(bool is_enabled)
  **/
 void KeyingInterface::enableKey(bool is_enabled)
 {
-  is_key_enabled = is_enabled;
+  isKeyEnabled = is_enabled;
   if (!is_enabled)
   {
-    key_state = LOW;
+    keyState = LOW;
     digitalWrite(PIN_KEY_LINE, LOW);
   }
 }
@@ -77,9 +79,9 @@ void KeyingInterface::enableKey(bool is_enabled)
  **/
 void KeyingInterface::setKey(byte state)
 {
-  if (state == key_state)
+  if (state == keyState)
     return; // if state did not change, do nothing
-  key_state = state;
+  keyState = state;
   if (state == LOW)
   {
     noTone(PIN_SIDETONE);
@@ -94,7 +96,7 @@ void KeyingInterface::setKey(byte state)
       pitch = 2048; // in command mode use high pitch
       state = LOW;  // in command mode no actual keying
     }
-    if (!is_key_enabled)
+    if (!isKeyEnabled)
       state = LOW; // if keying is not enabled, no actual keying
     tone(PIN_SIDETONE, pitch);
   }
@@ -138,7 +140,7 @@ void KeyingInterface::setPtt(byte state)
 void KeyingInterface::checkPttTail()
 {
   unsigned long currentTime = millis(); // fix the current moment
-  if (key_state == HIGH)
+  if (keyState == HIGH)
   {
     pttTime = currentTime;
   }
@@ -163,7 +165,7 @@ void KeyingInterface::resetPttEvent()
 
 byte KeyingInterface::getInterfaceStatus()
 {
-  return (pttState << 1 | key_state);
+  return (pttState << 1 | keyState);
 }
 
 void KeyingInterface::holdElementDuration(unsigned int length, int speed_wpm)
@@ -174,7 +176,7 @@ void KeyingInterface::holdElementDuration(unsigned int length, int speed_wpm)
   {
     paddle.setSqueeze(); // set squeeze flag for later comparison
     checkPttTail();
-    switch( being_sent ) {
+    switch( currentlyEmitting ) {
       case EMIT_DIT:
         paddle.check(paddle.DAH);
         break;

@@ -34,6 +34,8 @@ void checkAnalogButton() {
       isButtonPressed = pressed ;
       buttonEvent = (millis() - lastButtonReadMs > 500 ) ? BTN_EVENT_LONG : BTN_EVENT_SHORT ;
       lastButtonReadMs = millis();
+      Serial.print("Button press ");
+      Serial.println( buttonEvent == BTN_EVENT_SHORT ? "short" : "long" );
     }
   }
   else { // button is not pressed 
@@ -45,7 +47,7 @@ void checkAnalogButton() {
   }
 }
 
-void service_command_button() {
+void serviceCommandButton() {
   if (buttonEvent > 0)
   {
     if (isCommandMode || (buttonEvent == BTN_EVENT_LONG))

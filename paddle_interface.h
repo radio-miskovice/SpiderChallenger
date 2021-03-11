@@ -4,8 +4,6 @@
 #include <Arduino.h>
 #include "core.h"
 
-// extern bool paddleBreakIsPending ;
-
 class PaddleInterface
 {
 public:

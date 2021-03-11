@@ -9,9 +9,10 @@ class SpeedController {
     byte minValue = 0;
     byte maxValue = 0;
   public:
+    bool hasChanged = false ;
     virtual void init() {};
     virtual void update() {};
-    byte getValue() { return value; };
+    byte getValue() { hasChanged = false; return value; };
     void setMaxValue( byte max ) { maxValue = max ; };
     void setMinValue( byte min ) { minValue = min ; };
 };

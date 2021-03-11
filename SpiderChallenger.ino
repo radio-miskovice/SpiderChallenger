@@ -10,7 +10,6 @@
 #include "features.h"       // define features to use
 #include "pins.h"           // define pin layout of the target hardware
 #include "core.h"           // shared defines
-#include "eeprom_config.h"  // configuration load and save
 #include "config.h"           // config structure; TODO: merge with eeprom_config
 
 #include "morse.h"            // morse codec engine and timing control
@@ -23,27 +22,12 @@
 #include "analog_button.h"    // TODO: create polymorphic button handler
 #include "powerbank.h"        // powerbank dummy load management
 
-// CONFIGURATION - these variables will be written to EEPROM
-Config config = {
-    .paddleMode = IAMBIC_B, 
-    .toneManualHz = 750,
-    .toneAutoHz = 750, 
-    .pttTailMs = 5,
-    .pttLeadMs = 30,
-    .pttHangTimeWSPct = 90,
-    .speedMinWpm = 12,
-    .speedMaxWpm = 36,
-    .paddleTriggerPtt = true, 
-    .weightingPct = 50,
-    .isPaddleSwapped = false
-};
 
-bool configIsDirty = false ;
 
 /* SPEED SETTINGS */
-unsigned int wpm = 25;        // current speed in WPM
-unsigned int wpmPrevious = 25 ; // speed set manually before changed by buffered command  
-unsigned int wpmMaxPaddle = 0;  // maximum speed for paddle keying in WPM. 0: switched off
+word wpm = 25;        // current speed in WPM
+word wpmPrevious = 25 ; // speed set manually before changed by buffered command  
+word wpmMaxPaddle = 0;  // maximum speed for paddle keying in WPM. 0: switched off
 bool speedIsSetManually = true; // true if manual speed control is enabled (rotary or potentiometer)
 bool speedManualSetEnabled = true ;
 
@@ -63,6 +47,9 @@ unsigned long last_powerbank;
  */
 void setup()
 {
+  Serial.begin(57600); // primary_serial_port_baud_rate
+  // Serial.println("Challenger.");
+  // unsigned long initTime = millis();
   // command mode LED
   pinMode(PIN_MODE_LED, OUTPUT);
   paddle.setup();
@@ -75,13 +62,15 @@ void setup()
   pinMode(PIN_SIDETONE, OUTPUT);
   digitalWrite(PIN_SIDETONE, LOW);
   digitalWrite(PIN_MODE_LED, HIGH);
-  load_config();
+  loadConfig();
   speedControl->init();
   speedControl->setMaxValue( config.speedMaxWpm );
   speedControl->setMinValue( config.speedMinWpm );
   setSpeed( speedControl->getValue() ); // in case of potentiometer, read potentiometer, otherwise use initial values
   resetInterfaces();
-  Serial.begin(57600); // primary_serial_port_baud_rate
+  // Serial.print("Setup completed in ");
+  // Serial.print( millis() - initTime );
+  // Serial.println(" ms");
   tone(PIN_SIDETONE, 512);
   delay(46);
   tone(PIN_SIDETONE, 1024);
@@ -93,22 +82,21 @@ void setup()
 /* Main loop */
 void loop()
 {
-  checkAnalogButton();
-  service_command_button();
-  paddle.handleInterrupt(); // properly handle paddle break if occurred
+  paddle.handleInterrupt(); // handle paddle break if occurred
   paddle.check(paddle.DIT); // check paddle state
   paddle.check(paddle.DAH); // check paddle state
   paddle.serviceBuffers();  // handle paddle memory accordingly
   
   protocol.checkInput();    // check input stream and handle incoming data if necessary
   paddle.serviceBuffers();  // again handle paddle memory
-
   protocol.serviceSendBuffer();   // handle any data in send buffer
   keyerInterface.checkPttTail();  // turn off PTT after PTT tail time elapsed after last key up
   speedControl->update();   // update speed control values
-  if( speedManualSetEnabled ) {
+  if( speedManualSetEnabled && speedControl->hasChanged ) {
     setSpeed( speedControl->getValue() );
   }
+  checkAnalogButton();
+  serviceCommandButton();
 }
 
 /* RESET ALL CONTROLS AND OUTPUTS */
@@ -132,12 +120,13 @@ void resetInterfaces()
 /**
  * 
  **/
-void setSpeed(int wpm_set)
-{
+void setSpeed(word wpm_set)
+{ bool isChanged ;
   if (wpm_set < config.speedMinWpm)
     wpm_set = config.speedMinWpm;
   if (wpm_set > config.speedMaxWpm)
     wpm_set = config.speedMaxWpm;
+  isChanged = ( wpm != wpm_set );
   wpm = wpm_set;
-  protocol.sendStatus();
+  if( isChanged ) protocol.sendStatus();
 }

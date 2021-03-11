@@ -11,7 +11,6 @@
 #include "command.h"
 #include "core.h"
 #include "core_variables.h"
-#include "eeprom_config.h"
 #include "morse.h"
 #include "send_buffer.h"
 
@@ -19,8 +18,6 @@
 #include "keyer_interface.h"
 #include "paddle_interface.h"
 #include "protocol.h"
-
-#define CHALLENGER_VERSION "1.0.2"
 
 Protocol protocol = Protocol();
 
@@ -39,8 +36,8 @@ Protocol::Protocol()
 }
 
 /** check if received byte is a command and act accordingly
-   *  if not a command, just push it to the character FIFO **/
-void Protocol::checkCommand()
+ *  if not a command, just push it to the character FIFO **/
+bool Protocol::isNotCommand(char rcvd)
 {
   if (expectCmd)
   { // expecting command after Esc
@@ -51,6 +48,7 @@ void Protocol::checkCommand()
       expectCmd = false;
       execute(cmdBuffer[0], cmdBuffer[1], false);
     }
+    return false; // it was command
   }
   else
   { // not waiting for command bytes after Esc
@@ -58,36 +56,41 @@ void Protocol::checkCommand()
     { // Esc character received
       expectCmd = true;
       cmdLength = 0;
-    }
-    else
-    { // not an Escape
-      fifo.push(rcvd);
+      return false ;
     }
   }
+  return true ;
 }
 
 /** Check Serial for input bytes and process them **/
-void Protocol::checkInput()
-{
-  bool responded = false;
+void Protocol::checkInput() { 
+  bool needResponse = true; 
+  char rcvd ;
   while (Serial.available() > 0 && fifo.canTake())
   {
+    if( !fifo.hasMore() ) {
+      paddle.reset();
+      paddle.enableInterrupt();
+    }
     rcvd = Serial.read();
-    checkCommand();
-    if (!responded)
+    if (isNotCommand( rcvd )) {
+      fifo.push(rcvd);
+    }
+    if (needResponse)
     {
-      delay(5);
+      delay(12);
       sendStatus();
-      responded = true;
+      needResponse = false ;
+      wasResponded++ ;
     }
   }
 }
 
 /** Execute command 
-   * @param command the command
-   * @param data command data
-   * @param isBuffered set to true if the commend was fetched from FIFO
-   */
+ * @param command the command
+ * @param data command data
+ * @param isBuffered set to true if the commend was fetched from FIFO
+ */
 void Protocol::execute(byte command, byte data, bool isBuffered)
 {
   switch (command)
@@ -265,7 +268,7 @@ void Protocol::execute(byte command, byte data, bool isBuffered)
     break;
 
   case CMD_SAVE_CONFIG:
-    save_config(!data); // data == 0 will erase old configuration
+    saveConfig(!data); // data == 0 will erase old configuration
     break;
 
   case CMD_STORE_MSG:
@@ -289,7 +292,7 @@ void Protocol::sendStatus(bool forceSend)
   {
     byte statusBits;
     byte wpmByte;
-    statusBits = 0x80 | (fifo.hasMore() || expectCmd ? 1 << 5 : 0) // set bit 5 if send buffer is not empty
+    statusBits = 0x80 | (fifo.hasMore() || expectCmd ? (1 << 5) : 0) // set bit 5 if send buffer is not empty
                  | (keyerInterface.getInterfaceStatus() << 3) | (paddle.wasTouched ? 1 << 2 : 0);
     wpmByte = (speedIsSetManually ? wpm : 0) & 0x7F;
     Serial.write(statusBits);
@@ -302,7 +305,12 @@ void Protocol::serviceSendBuffer()
   char c;
   if (fifo.hasMore())
   {
-    paddle.reset();
+    if (paddle.wasTouched) {
+      fifo.reset();
+      sendStatus(); // report break & empty buffer
+      return ;
+    }
+    paddle.enableInterrupt();
     c = fifo.shift();
     if (c >= ' ')
       morseEngine.sendAsciiChar(c);
@@ -310,12 +318,15 @@ void Protocol::serviceSendBuffer()
     {
       if (fifo.hasMore())
       {
-        // TODO: process command
         char data = fifo.shift();
         execute(c, data, true);
       }
       else
         fifo.unshift(); // if the second byte is not available, return the first byte back to FIFO
+    }
+    if( !fifo.hasMore() ) {
+      // report empty buffer
+      sendStatus();
     }
   }
 }
@@ -386,7 +397,7 @@ void Protocol::reportText(byte kind)
 
   default: // legacy ID
     Serial.print("Spider Keyer (Arduino Nano) by OK1FIG [");
-    Serial.print(VERSION);
+    Serial.print(SPIDER_KEYER_VERSION); // report compatible emulation version
     Serial.print("]"); // Don't change this to work seamlessly with HamRacer
   }
 }
