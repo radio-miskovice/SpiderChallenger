@@ -177,6 +177,7 @@ void MorseEngine::sendMorseElement(byte element) {
   unsigned int elementLength;
   unsigned int totalLength;
   unsigned long elapsed = lastElementMs - millis();
+  bool isPaddleSending = !protocol.isSendingBuffer();
 
   /* if time elapsed since last element + element space > 1.5 unit, convert character
     * the actual conversion takes place in holdElementDuration() because there is
@@ -186,20 +187,22 @@ void MorseEngine::sendMorseElement(byte element) {
     lastMorseCode = morseCodeEmitted ; // prepare morse code for conversion
     morseCodeEmitted = 0x01 ;          // prepare empty morse code for new collection
   }
-  if ( !protocol.isSendingBuffer() && morseCodeEmitted == 0) { morseCodeEmitted = 0x01; } // set start bit
+  if ( isPaddleSending && morseCodeEmitted == 0) { morseCodeEmitted = 0x01; } // set start bit
   if (element == DIT) // DIT
   {
     keyerInterface.currentlyEmitting = EMIT_DIT;
     elementLength = 100 * config.weightingPct / 50;
     totalLength = 200;
-    if (!protocol.isSendingBuffer()) { morseCodeEmitted *= 2; } // shift morse code for decoder, LSB set to 0 (dit)
-
+    if (isPaddleSending)
+    {
+      morseCodeEmitted *= 2;
+    } // shift morse code for decoder, LSB set to 0 (dit)
   }
   else  {
     keyerInterface.currentlyEmitting = EMIT_DAH;
     elementLength = 6 * config.weightingPct ; // dah:dit = 300, 300 / 50 = 6
     totalLength = 400;
-    if (!protocol.isSendingBuffer())
+    if (isPaddleSending)
     {
       morseCodeEmitted = (morseCodeEmitted * 2) | 0x01; // // shift morse code for decoder, LSB set to 1 (dah)
     }

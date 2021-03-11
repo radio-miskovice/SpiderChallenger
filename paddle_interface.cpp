@@ -118,8 +118,11 @@ void PaddleInterface::disableInterrupt()
 
 void PaddleInterface::handleInterrupt()
 {
+  PCIFR |= PADDLE_PCIE_BIT ; // reset interrupt flag
   if (paddleBreakIsPending)
-  { bool paddleReleased = digitalRead(PIN_PADDLE_LEFT) && digitalRead(PIN_PADDLE_RIGHT);
+  { bool paddleReleased ;
+    delay(10);
+    paddleReleased = digitalRead(PIN_PADDLE_LEFT) && digitalRead(PIN_PADDLE_RIGHT);
     if( paddleReleased ) {
       paddleBreakIsPending = false ; // reset pending paddle break flag
       wasTouched = true ;    // indicate that paddle was touched (important for correct status message)
@@ -146,10 +149,17 @@ void PaddleInterface::check(byte paddleValue)
 {
   byte paddles = digitalRead(PIN_PADDLE_LEFT) * 2 + digitalRead(PIN_PADDLE_RIGHT);
   bool keyIsForced = keyerInterface.isKeyForced ; // remember original force state
+  // if( protocol.isSendingBuffer() && paddles < 3 ) { // break condition
+  //   protocol.resetSendBuffer();
+  //   paddleBreakIsPending = true ;
+  //   buffer = 0;
+  // }
   // if paddle break occurred, wait until paddles are released
   if( paddleBreakIsPending ) {
     wasTouched = true ;
-    if( paddles == 3 ) { // paddle release condition, completes the break
+    delay(10);
+    if ((digitalRead(PIN_PADDLE_LEFT) == HIGH) && (digitalRead(PIN_PADDLE_RIGHT) == HIGH)) // paddle release condition, completes the break
+    {                                
       paddleBreakIsPending = false ; // reset break flag
       protocol.sendStatus();
     }
@@ -162,12 +172,6 @@ void PaddleInterface::check(byte paddleValue)
   paddles = paddles & (config.isPaddleSwapped ? (paddleValue == DIT ? DAH : DIT) : paddleValue);
   if (paddles == 0) 
   {
-    if( protocol.isSendingBuffer() ) {
-      paddleBreakIsPending = true ;
-      wasTouched = true ;
-      protocol.resetSendBuffer();
-      return ;
-    }
     // after paddle break, do not fill dit or dah memory until paddles are released
     buffer |= paddleValue; // set appropriate paddle bit
     paddle.wasTouched = true ;
@@ -211,15 +215,18 @@ void PaddleInterface::serviceBuffers()
 
 ISR(PADDLE_INT_VECTOR)
 {
+  intrCount++ ;
   if (!paddleBreakIsPending) // only process if the flag is not set yet
   {
+    breakCount++ ;
     if (protocol.isSendingBuffer()) // only valid if sending from buffer
     {
+      resetCount++ ;
       paddleBreakIsPending = true;
       paddle.wasTouched = true;
       paddle.buffer = 0;
-      paddle.isSqueezed = false ;
-      PCICR |= PADDLE_PCIE_BIT; // disable further interrupt; must be enabled when Protocol starts sending from buffer
+      PCICR &= ~PADDLE_PCIE_BIT; // disable further interrupt; must be enabled when Protocol starts sending from buffer
+      PCIFR |= PADDLE_PCIE_BIT ;
     }
   }
 }

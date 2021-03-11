@@ -284,6 +284,7 @@ bool Protocol::isSendingBuffer() {
 void Protocol::resetSendBuffer()
 {
   fifo.reset();
+  paddle.disableInterrupt();
 }
 
 void Protocol::sendStatus(bool forceSend)
@@ -292,8 +293,10 @@ void Protocol::sendStatus(bool forceSend)
   {
     byte statusBits;
     byte wpmByte;
-    statusBits = 0x80 | (fifo.hasMore() || expectCmd ? (1 << 5) : 0) // set bit 5 if send buffer is not empty
-                 | (keyerInterface.getInterfaceStatus() << 3) | (paddle.wasTouched ? 1 << 2 : 0);
+    statusBits = 0x80 ;
+    if( fifo.hasMore() || expectCmd ) 
+      statusBits |= 0x20 ;
+    statusBits |= (keyerInterface.getInterfaceStatus() << 3);
     wpmByte = (speedIsSetManually ? wpm : 0) & 0x7F;
     Serial.write(statusBits);
     Serial.write(wpmByte);
@@ -305,12 +308,6 @@ void Protocol::serviceSendBuffer()
   char c;
   if (fifo.hasMore())
   {
-    if (paddle.wasTouched) {
-      fifo.reset();
-      sendStatus(); // report break & empty buffer
-      return ;
-    }
-    paddle.enableInterrupt();
     c = fifo.shift();
     if (c >= ' ')
       morseEngine.sendAsciiChar(c);
@@ -326,6 +323,7 @@ void Protocol::serviceSendBuffer()
     }
     if( !fifo.hasMore() ) {
       // report empty buffer
+      paddle.disableInterrupt();
       sendStatus();
     }
   }

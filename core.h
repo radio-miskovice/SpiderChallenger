@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #define SPIDER_KEYER_VERSION "1.37" /* Spider Keyer 2020-12-20 */
-#define CHALLENGER_VERSION "1.0.4"  /* Challenger firmware version */
+#define CHALLENGER_VERSION "1.1.0"  /* Challenger firmware version */
 
 // Shared constants
 #define IAMBIC_A 'A'

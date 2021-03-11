@@ -11,7 +11,7 @@ public:
   static const byte DAH = EMIT_DAH ;
   // volatile byte sendingMode = SEND_MODE_PADDLE; // SEND_MODE_MAN, SEND_MODE_AUTO
   // volatile byte sendingModeLast = SEND_MODE_PADDLE;
-  byte buffer = 0; // bit 0: dit, bit1: dah
+  volatile byte buffer = 0; // bit 0: dit, bit1: dah
   volatile bool wasTouched = false;
   bool isSqueezed; // ex: iambic_flag, i.e. both paddles on
   void setup();   // HW ports setup

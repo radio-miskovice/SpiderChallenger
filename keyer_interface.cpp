@@ -5,6 +5,7 @@
 #include "core.h"
 #include "core_variables.h"
 #include "protocol.h"
+#include "morse.h"
 #include "paddle_interface.h"
 #include "keyer_interface.h"
 
@@ -174,6 +175,7 @@ void KeyingInterface::holdElementDuration(unsigned int length, int speed_wpm)
   unsigned long ticks = 12 * length / speed_wpm;
   while (((millis() - start) < ticks))
   {
+    morseEngine.decodeKeyedCharacter();
     paddle.setSqueeze(); // set squeeze flag for later comparison
     checkPttTail();
     switch( currentlyEmitting ) {
@@ -188,10 +190,6 @@ void KeyingInterface::holdElementDuration(unsigned int length, int speed_wpm)
         paddle.check(paddle.DIT);
     }
 
-    if (protocol.isSendingBuffer() && paddle.wasTouched)
-    { protocol.resetSendBuffer();
-      return;
-    }
   }
 
   // check if both paddles were released while in IAMBIC_A squeeze
