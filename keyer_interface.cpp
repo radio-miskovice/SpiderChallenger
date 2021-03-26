@@ -93,7 +93,9 @@ void KeyingInterface::setKey(byte state)
     word pitch = config.toneManualHz;
     if (protocol.isSendingBuffer())
       pitch = config.toneAutoHz;
+
     if (commandMode.isActive)
+
     {
       pitch = 2048; // in command mode use high pitch
       state = LOW;  // in command mode no actual keying

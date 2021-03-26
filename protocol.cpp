@@ -399,3 +399,4 @@ void Protocol::reportText(byte kind)
     Serial.print("]"); // Don't change this to work seamlessly with HamRacer
   }
 }
+

@@ -1,6 +1,6 @@
 // Morse codec engine
-#ifndef MORSE_CODEC_H
-#define MORSE_CODEC_H
+#ifndef MORSE_H
+#define MORSE_H
 
 #include <Arduino.h>
 #include "core.h"

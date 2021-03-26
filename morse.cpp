@@ -228,6 +228,10 @@ void MorseEngine::sendMorseCode(word morse_code)
   }
   while (code != 0x80)
   {
+    if( paddle.wasTouched ) {
+      protocol.resetSendBuffer();
+      return ;
+    }
     next = code & 0x80;
     sendMorseElement(next == 0 ? EMIT_DIT : EMIT_DAH ); // any value next > 0 counts as dash
     code *= 2;

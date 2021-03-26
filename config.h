@@ -10,6 +10,9 @@
 void saveConfig(bool erase);
 void loadConfig();
 
+void saveConfig(bool erase);
+void loadConfig();
+
 struct Config
 {
   char paddleMode ;
