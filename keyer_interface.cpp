@@ -93,7 +93,11 @@ void KeyingInterface::setKey(byte state)
     word pitch = config.toneManualHz;
     if (protocol.isSendingBuffer())
       pitch = config.toneAutoHz;
+<<<<<<< HEAD
     if (commandMode.isActive)
+=======
+    if (isCommandMode)
+>>>>>>> fc2f32ff3012dda71dab8c2f90e85a75dede7202
     {
       pitch = 2048; // in command mode use high pitch
       state = LOW;  // in command mode no actual keying
@@ -176,6 +180,10 @@ void KeyingInterface::holdElementDuration(unsigned int length, int speed_wpm)
   unsigned long ticks = 12 * length / speed_wpm;
   while (((millis() - start) < ticks))
   {
+<<<<<<< HEAD
+=======
+    morseEngine.decodeKeyedCharacter();
+>>>>>>> fc2f32ff3012dda71dab8c2f90e85a75dede7202
     paddle.setSqueeze(); // set squeeze flag for later comparison
     checkPttTail();
     switch( currentlyEmitting ) {
@@ -189,6 +197,10 @@ void KeyingInterface::holdElementDuration(unsigned int length, int speed_wpm)
         paddle.check(paddle.DAH);
         paddle.check(paddle.DIT);
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> fc2f32ff3012dda71dab8c2f90e85a75dede7202
   }
 
   // check if both paddles were released while in IAMBIC_A squeeze

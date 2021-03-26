@@ -40,10 +40,17 @@ void saveConfig(bool erase)
     EEPROM.put(ptr, config);
   }
   // Beep R:
+<<<<<<< HEAD
   for (char i = 3; i > 0; i--)
   {
     tone(PIN_SIDETONE, 2048);
     delay(i==2 ? 150 : 50);
+=======
+  for (char i = 2; i > 0; i--)
+  {
+    tone(PIN_SIDETONE, 2048);
+    delay(50 * (1 + 2 * (i % 2)));
+>>>>>>> fc2f32ff3012dda71dab8c2f90e85a75dede7202
     noTone(PIN_SIDETONE);
     delay(50);
   }
