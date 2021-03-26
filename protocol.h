@@ -7,24 +7,26 @@
 
 class Protocol {
   private:
-    char rcvd;
+
     byte cmdBuffer[2];
     byte cmdLength = 0;
-    bool expectCmd = false;
     bool canSendStatus = false;
-    CharacterFIFO fifo;
+    word wasResponded = 0 ;
 
   public:
+    bool expectCmd = false;
+    CharacterFIFO fifo;
     Protocol();
-    void serviceSendBuffer();
-    void resetSendBuffer();
-    void sendStatus(bool forceSend = false);
-    void execute(byte command, byte data, bool isBuffered);
-    void checkCommand();
+    bool isNotCommand(char rcvd);
     void checkInput();
-    void storeMessage(byte data);
-    void sendMessage();
+    void execute(byte command, byte data, bool isBuffered);
+    bool isSendingBuffer();
     void reportText(byte kind);
+    void resetSendBuffer();
+    void sendMessage();
+    void sendStatus(bool forceSend = false);
+    void serviceSendBuffer();
+    void storeMessage(byte data);
 };
 
 extern Protocol protocol ;

@@ -7,20 +7,17 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include "pins.h"
+#include "config.h"
 #include "command.h"
 #include "core.h"
 #include "core_variables.h"
-#include "eeprom_config.h"
 #include "morse.h"
+#include "send_buffer.h"
 
 #include "speed_control.h"
-#include "config.h"
-#include "send_buffer.h"
-#include "keyer-interface.h"
-#include "paddle-interface.h"
+#include "keyer_interface.h"
+#include "paddle_interface.h"
 #include "protocol.h"
-
-#define CHALLENGER_VERSION "1.0"
 
 Protocol protocol = Protocol();
 
@@ -38,52 +35,62 @@ Protocol::Protocol()
   fifo = CharacterFIFO();
 }
 
-void Protocol::resetSendBuffer() {
-  fifo.reset();
+/** check if received byte is a command and act accordingly
+ *  if not a command, just push it to the character FIFO **/
+bool Protocol::isNotCommand(char rcvd)
+{
+  if (expectCmd)
+  { // expecting command after Esc
+    cmdBuffer[cmdLength++] = rcvd;
+    if (cmdLength >= 2)
+    {
+      cmdLength = 0;
+      expectCmd = false;
+      execute(cmdBuffer[0], cmdBuffer[1], false);
+    }
+    return false; // it was command
+  }
+  else
+  { // not waiting for command bytes after Esc
+    if (rcvd == 0x1B)
+    { // Esc character received
+      expectCmd = true;
+      cmdLength = 0;
+      return false ;
+    }
+  }
+  return true ;
 }
 
-void Protocol::serviceSendBuffer()
-{
-  char c;
-  if (fifo.hasMore())
+/** Check Serial for input bytes and process them **/
+void Protocol::checkInput() { 
+  bool needResponse = true; 
+  char rcvd ;
+  while (Serial.available() > 0 && fifo.canTake())
   {
-    paddle.reset();
-    c = fifo.shift();
-    if (c >= ' ')
-      morseEngine.sendAsciiChar(c);
-    else
+    if( !fifo.hasMore() ) {
+      paddle.reset();
+      paddle.enableInterrupt();
+    }
+    rcvd = Serial.read();
+    if (isNotCommand( rcvd )) {
+      fifo.push(rcvd);
+    }
+    if (needResponse)
     {
-      if (fifo.hasMore())
-      {
-        // TODO: process command
-        char data = fifo.shift();
-        execute(c, data, true);
-      }
-      else
-        fifo.unshift(); // if the second byte is not available, return the first byte back to FIFO
+      delay(12);
+      sendStatus();
+      needResponse = false ;
+      wasResponded++ ;
     }
   }
 }
 
-void Protocol::sendStatus(bool forceSend)
-{
-  if (canSendStatus || forceSend)
-  {
-    byte statusBits;
-    byte wpmByte;
-    statusBits = 0x80 | (fifo.hasMore() || expectCmd ? 1 << 5 : 0) // set bit 5 if send buffer is not empty
-                 | (keyerInterface.getInterfaceStatus() << 3) | (paddle.wasTouched ? 1 << 2 : 0);
-    wpmByte = (speedIsSetManually ? wpm : 0) & 0x7F;
-    Serial.write(statusBits);
-    Serial.write(wpmByte);
-  }
-}
-
 /** Execute command 
-   * @param command the command
-   * @param data command data
-   * @param isBuffered set to true if the commend was fetched from FIFO
-   */
+ * @param command the command
+ * @param data command data
+ * @param isBuffered set to true if the commend was fetched from FIFO
+ */
 void Protocol::execute(byte command, byte data, bool isBuffered)
 {
   switch (command)
@@ -99,10 +106,11 @@ void Protocol::execute(byte command, byte data, bool isBuffered)
   // force KEY on or off
   case CMD_SET_KEY:
     fifo.reset();
-    keyerInterface.forcePtt( data == 2 ); 
-    keyerInterface.forceKey( data > 0 ); 
-    if( data == 0 ) {
-      keyerInterface.setKey( LOW ); // unforce KEY
+    keyerInterface.forcePtt(data == 2);
+    keyerInterface.forceKey(data > 0);
+    if (data == 0)
+    {
+      keyerInterface.setKey(LOW); // unforce KEY
     }
     else
       paddle.wasTouched = false;
@@ -188,14 +196,18 @@ void Protocol::execute(byte command, byte data, bool isBuffered)
     break;
 
   case CMD_SET_IAMBIC_MODE:
-    if (data == 0) {
-      if( config.paddleMode != IAMBIC_A ) {
+    if (data == 0)
+    {
+      if (config.paddleMode != IAMBIC_A)
+      {
         config.paddleMode = IAMBIC_A;
-        configIsDirty = true ;
+        configIsDirty = true;
       }
     }
-    else if (data == 1) {
-      if (config.paddleMode != IAMBIC_B) {
+    else if (data == 1)
+    {
+      if (config.paddleMode != IAMBIC_B)
+      {
         config.paddleMode = IAMBIC_B;
         configIsDirty = true;
       }
@@ -256,7 +268,7 @@ void Protocol::execute(byte command, byte data, bool isBuffered)
     break;
 
   case CMD_SAVE_CONFIG:
-    save_config(!data); // data == 0 will erase old configuration
+    saveConfig(!data); // data == 0 will erase old configuration
     break;
 
   case CMD_STORE_MSG:
@@ -265,50 +277,58 @@ void Protocol::execute(byte command, byte data, bool isBuffered)
   }
 }
 
-/** check if received byte is a command and act accordingly
-   *  if not a command, just push it to the character FIFO **/
-void Protocol::checkCommand()
+bool Protocol::isSendingBuffer() {
+  return fifo.hasMore();
+}
+
+void Protocol::resetSendBuffer()
 {
-  if (expectCmd)
-  { // expecting command after Esc
-    cmdBuffer[cmdLength++] = rcvd;
-    if (cmdLength >= 2)
-    {
-      cmdLength = 0;
-      expectCmd = false;
-      execute(cmdBuffer[0], cmdBuffer[1], false);
-    }
+  fifo.reset();
+  paddle.disableInterrupt();
+}
+
+void Protocol::sendStatus(bool forceSend)
+{
+  if (canSendStatus || forceSend)
+  {
+    byte statusBits;
+    byte wpmByte;
+    statusBits = 0x80 ;
+    if( fifo.hasMore() || expectCmd ) statusBits |= 0x20 ;
+    statusBits |= (keyerInterface.getInterfaceStatus() << 3);
+    statusBits |= paddle.wasTouched ? 0x04 : 0 ;
+    wpmByte = (speedIsSetManually ? wpm : 0) & 0x7F;
+    Serial.write(statusBits);
+    Serial.write(wpmByte);
   }
-  else
-  { // not waiting for command bytes after Esc
-    if (rcvd == 0x1B)
-    { // Esc character received
-      expectCmd = true;
-      cmdLength = 0;
-    }
+}
+
+void Protocol::serviceSendBuffer()
+{
+  char c;
+  if (fifo.hasMore())
+  {
+    c = fifo.shift();
+    if (c >= ' ')
+      morseEngine.sendAsciiChar(c);
     else
-    { // not an Escape
-      fifo.push(rcvd);
+    {
+      if (fifo.hasMore())
+      {
+        char data = fifo.shift();
+        execute(c, data, true);
+      }
+      else
+        fifo.unshift(); // if the second byte is not available, return the first byte back to FIFO
+    }
+    if( !fifo.hasMore() ) {
+      // report empty buffer
+      paddle.disableInterrupt();
+      sendStatus();
     }
   }
 }
 
-/** Check Serial for input bytes and process them **/
-void Protocol::checkInput()
-{
-  bool responded = false;
-  while (Serial.available() > 0 && fifo.canTake())
-  {
-    rcvd = Serial.read();
-    checkCommand();
-    if (!responded)
-    {
-      delay(5);
-      sendStatus();
-      responded = true;
-    }
-  }
-}
 
 // append one byte to stored message
 void Protocol::storeMessage(byte data)
@@ -375,7 +395,7 @@ void Protocol::reportText(byte kind)
 
   default: // legacy ID
     Serial.print("Spider Keyer (Arduino Nano) by OK1FIG [");
-    Serial.print(VERSION);
+    Serial.print(SPIDER_KEYER_VERSION); // report compatible emulation version
     Serial.print("]"); // Don't change this to work seamlessly with HamRacer
   }
 }

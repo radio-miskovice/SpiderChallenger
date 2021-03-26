@@ -1,3 +1,6 @@
+#ifndef COMMAND_H
+#define COMMAND_H
+
 // The commands that can be sent from PC, either buffered or immediate:
 #define CMD_FIRST 1
 #define CMD_SET_PTT 1 // Toggle PTT Ctrl-A
@@ -19,15 +22,15 @@
 #define CMD_GET_SIGNATURE 17 // Ctrl-Q
 #define CMD_BEEP 18          // Ctrl-R
 #define CMD_SET_FEEDBACK 19  // Ctrl-S
-#define CMD_SET_LOW_LIMIT 20
-#define CMD_SET_HIGH_LIMIT 21
-#define CMD_SET_MANUAL_SENDING_LIMIT 22
-#define CMD_SET_PADDLES_SWAPPED 23
-#define CMD_SAVE_CONFIG 24
-#define CMD_STORE_MSG 25
+#define CMD_SET_LOW_LIMIT 20    // Ctrl-T
+#define CMD_SET_HIGH_LIMIT 21   // Ctrl-U
+#define CMD_SET_MANUAL_SENDING_LIMIT 22 // Ctrl-V
+#define CMD_SET_PADDLES_SWAPPED 23      // Ctrl-W
+#define CMD_SAVE_CONFIG 24              // Ctrl-X
+#define CMD_STORE_MSG 25                // Ctrl-Y
 #define CMD_LAST 25
 
 // Every immediate command must preceeded with this char:
 #define ESCAPE_CHAR 27
 
-// char processProtocol(char x);
+#endif

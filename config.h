@@ -1,9 +1,14 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-/* CONFIGURATION */
+#include <EEPROM.h>
 
-#define CONFIG_VERSION 2
+/* CONFIGURATION */
+#define MAGIC_HEADER   0xCF 
+#define CONFIG_VERSION 3
+
+void saveConfig(bool erase);
+void loadConfig();
 
 struct Config
 {
@@ -18,6 +23,7 @@ struct Config
   bool paddleTriggerPtt ;
   byte weightingPct ;
   bool isPaddleSwapped ;
+  unsigned char commandWpm ;
 };
 
 extern bool configIsDirty ;

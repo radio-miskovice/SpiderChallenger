@@ -6,55 +6,41 @@
  * https://creativecommons.org/licenses/by-nc/4.0/
  * Jindrich Vavruska, jindrich@vavruska.cz
  **/
+#ifdef USE_POTENTIOMETER
+
 #include <Arduino.h>
 #include "pins.h"
 #include "core.h"
 #include "core_variables.h"
 
-#ifdef USE_POTENTIOMETER 
+#include "potentiometer.h"
 
-#define POT_CHECK_INTERVAL_MS 150
-#define POT_CHANGE_THRESHOLD  0.9
+#if defined(PIN_POTENTIOMETER) && PIN_POTENTIOMETER > 0
+#define HAS_POTENTIOMETER
+#endif
 
-    /* POTENTIOMETER */
-    byte pot_wpm_read_last;
-unsigned long last_pot_check_time;
-int pot_full_scale_reading;
-bool speed_set_by_pot;
+Potentiometer potentiometer = Potentiometer();
 
-void check_potentiometer()
-{
-  if (FEATURE_ENABLED( enabled_features, FLAG_ENABLE_POT ))
-    if ((millis() - last_pot_check_time) > POT_CHECK_INTERVAL_MS)
-    {
-      byte pot_value_wpm_read = pot_value_wpm();
-      if ((abs(pot_value_wpm_read - pot_wpm_read_last) > POT_CHANGE_THRESHOLD))
-      {
-        speed_set_by_pot = true;
-        setSpeed(pot_value_wpm_read);
-        pot_wpm_read_last = pot_value_wpm_read;
-      }
-      last_pot_check_time = millis();
-    }
+void Potentiometer::init() {
+  #ifdef HAS_POTENTIOMETER
+  pinMode(PIN_POTENTIOMETER, INPUT);
+  value = analogRead(PIN_POTENTIOMETER);
+  value = map(value, 0, POT_FULL_SCALE, minValue, maxValue );
+  #endif
+  lastMeasurementMs = millis() - POT_INTERVAL_MS - 1;
 }
 
-byte pot_value_wpm()
-{
-  int pot_read = analogRead(PIN_POTENTIOMETER);
-  byte return_value = map(pot_read, 0, pot_full_scale_reading, speedMinWpm, speedMaxWpm);
-  return return_value;
+void Potentiometer::update() {
+  if( millis() - lastMeasurementMs > POT_INTERVAL_MS ) {
+    word measuredValue = 0 ;
+    byte oldValue = value ;
+    lastMeasurementMs = millis();
+    #ifdef HAS_POTENTIOMETER
+    value = analogRead(PIN_POTENTIOMETER);
+    value = map( measuredValue, 0, POT_FULL_SCALE, minValue, maxValue );
+    #endif
+    hasChanged = ( oldValue != value ); 
+  }
 }
 
-inline void set_potentiometer_defaults() {
-  pot_wpm_read_last = 0;
-  last_pot_check_time = 0;
-  pot_full_scale_reading = 1023; //default_pot_full_scale_reading;
-  speed_set_by_pot = true;
-}
-
-#else // potentiometer not used at all
-
-    inline void check_potentiometer() { }
-inline void set_potentiometer_defaults() {}
-
-#endif 
+#endif

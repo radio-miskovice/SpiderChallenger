@@ -62,6 +62,7 @@ void RotaryEncoder::increment( byte n ) { valueIncrement = n ; isEventPending = 
 void RotaryEncoder::update() {
   if( isEventPending ) {
     PCICR &= ~ROT_PCIE_MASK; // disable rotary interrupt while updating
+    hasChanged = !!valueIncrement ;
     value += valueIncrement ;
     valueIncrement = 0 ;
     isEventPending = false ;
