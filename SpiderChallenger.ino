@@ -14,6 +14,7 @@
 
 #include "morse.h"            // morse codec engine and timing control
 #include "protocol.h"         // protocol handler with integrated send buffer and command processor (Spider Protocol v. 2)
+#include "command_mode.h"     // command mode interpreter
 
 // HW interfaces
 #include "paddle_interface.h" // paddle interface (port and interrupt definitions and handling)
@@ -37,7 +38,7 @@ byte wordspaceLU = 6;
 byte letterspaceLU = 3;
 
 /* SENDING MODE */
-bool isCommandMode = false;
+// bool isCommandMode = false;
 
 long btn_toggle; // Debounce the message sending button
 unsigned long last_powerbank;
@@ -51,14 +52,12 @@ void setup()
   // Serial.println("Challenger.");
   // unsigned long initTime = millis();
   // command mode LED
-  pinMode(PIN_MODE_LED, OUTPUT);
+  commandMode.setup();
   paddle.setup();
   keyerInterface.setup();
   powerBank.setup();
   // KEY line
-  pinMode(PIN_KEY_LINE, OUTPUT);
-
-
+  
   pinMode(PIN_SIDETONE, OUTPUT);
   digitalWrite(PIN_SIDETONE, LOW);
   digitalWrite(PIN_MODE_LED, HIGH);
@@ -97,6 +96,8 @@ void loop()
   }
   checkAnalogButton();
   serviceCommandButton();
+  commandMode.append(morseEngine.decodeKeyedCharacter()) ;
+  commandMode.service();
 }
 
 /* RESET ALL CONTROLS AND OUTPUTS */

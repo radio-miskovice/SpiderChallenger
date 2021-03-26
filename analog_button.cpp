@@ -10,6 +10,7 @@
 #include "core_variables.h"
 #include "core.h"
 #include "protocol.h"
+#include "command_mode.h"
 
 #define BTN_EVENT_SHORT 1
 #define BTN_EVENT_LONG 2
@@ -32,10 +33,10 @@ void checkAnalogButton() {
     if( pressed ) return ; // was pressed and remains pressed
     else { // button is not pressed 
       isButtonPressed = pressed ;
-      buttonEvent = (millis() - lastButtonReadMs > 500 ) ? BTN_EVENT_LONG : BTN_EVENT_SHORT ;
+      buttonEvent = (millis() - lastButtonReadMs > 250 ) ? BTN_EVENT_LONG : BTN_EVENT_SHORT ;
       lastButtonReadMs = millis();
-      Serial.print("Button press ");
-      Serial.println( buttonEvent == BTN_EVENT_SHORT ? "short" : "long" );
+      // Serial.print("Button press ");
+      // Serial.println( buttonEvent == BTN_EVENT_SHORT ? "short" : "long" );
     }
   }
   else { // button is not pressed 
@@ -50,33 +51,22 @@ void checkAnalogButton() {
 void serviceCommandButton() {
   if (buttonEvent > 0)
   {
-    if (isCommandMode || (buttonEvent == BTN_EVENT_LONG))
+    if (!commandMode.isActive && (buttonEvent == BTN_EVENT_LONG)) // send message 
+    { // BTN_EVENT_LONG
+      protocol.sendMessage();
+    }
+    else
     {
-      byte x = 1 - digitalRead(PIN_MODE_LED);
-      digitalWrite(PIN_MODE_LED, x);
-      if (!x)
+      if (commandMode.isActive)
       {
-        tone(PIN_SIDETONE, 2048);
-        delay(125);
-        tone(PIN_SIDETONE, 256);
-        delay(125);
-        noTone(PIN_SIDETONE);
-        isCommandMode = false;
+        digitalWrite(PIN_MODE_LED, LOW);
+        commandMode.exit();
       }
       else
       {
-        tone(PIN_SIDETONE, 256);
-        delay(125);
-        tone(PIN_SIDETONE, 2048);
-        delay(125);
-        noTone(PIN_SIDETONE);
-        isCommandMode = true;
+        commandMode.init();
       }
     }
-    else
-    { // BTN_EVENT_SHORT
-      protocol.sendMessage();
-    }
-    buttonEvent = false;
+    buttonEvent = 0;
   }
 }

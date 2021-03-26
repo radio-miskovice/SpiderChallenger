@@ -5,7 +5,7 @@
 
 /* CONFIGURATION */
 #define MAGIC_HEADER   0xCF 
-#define CONFIG_VERSION 2
+#define CONFIG_VERSION 3
 
 void saveConfig(bool erase);
 void loadConfig();
@@ -23,6 +23,7 @@ struct Config
   bool paddleTriggerPtt ;
   byte weightingPct ;
   bool isPaddleSwapped ;
+  unsigned char commandWpm ;
 };
 
 extern bool configIsDirty ;

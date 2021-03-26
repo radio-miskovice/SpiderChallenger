@@ -6,6 +6,7 @@
 #include "core_variables.h"
 #include "protocol.h"
 #include "morse.h"
+#include "command_mode.h"
 #include "paddle_interface.h"
 #include "keyer_interface.h"
 
@@ -92,7 +93,7 @@ void KeyingInterface::setKey(byte state)
     word pitch = config.toneManualHz;
     if (protocol.isSendingBuffer())
       pitch = config.toneAutoHz;
-    if (isCommandMode)
+    if (commandMode.isActive)
     {
       pitch = 2048; // in command mode use high pitch
       state = LOW;  // in command mode no actual keying
@@ -175,7 +176,6 @@ void KeyingInterface::holdElementDuration(unsigned int length, int speed_wpm)
   unsigned long ticks = 12 * length / speed_wpm;
   while (((millis() - start) < ticks))
   {
-    morseEngine.decodeKeyedCharacter();
     paddle.setSqueeze(); // set squeeze flag for later comparison
     checkPttTail();
     switch( currentlyEmitting ) {
@@ -189,7 +189,6 @@ void KeyingInterface::holdElementDuration(unsigned int length, int speed_wpm)
         paddle.check(paddle.DAH);
         paddle.check(paddle.DIT);
     }
-
   }
 
   // check if both paddles were released while in IAMBIC_A squeeze

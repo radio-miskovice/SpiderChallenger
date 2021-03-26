@@ -11,11 +11,13 @@
 #include "core.h"
 #include "core_variables.h"
 
+#include "morse.h"
+#include "command_mode.h"
 #include "config.h"
 #include "protocol.h"
+
 #include "keyer_interface.h"
 #include "paddle_interface.h"
-#include "morse.h"
 
 #if (PIN_PADDLE_LEFT > 1) && (PIN_PADDLE_LEFT < 8)
 #define LEFT_GROUP 2
@@ -100,6 +102,7 @@ void PaddleInterface::reset()
 // activate interrupt
 void PaddleInterface::enableInterrupt()
 {
+  noInterrupts();
   if ((PCIFR & PADDLE_PCIE_BIT) != 0)
   {
     PCIFR |= PADDLE_PCIE_BIT ; // delete interrupt flag if it was set
@@ -148,12 +151,6 @@ void PaddleInterface::check(byte paddleValue)
 {
   byte paddles = digitalRead(PIN_PADDLE_LEFT) * 2 + digitalRead(PIN_PADDLE_RIGHT);
   bool keyIsForced = keyerInterface.isKeyForced ; // remember original force state
-  // if( protocol.isSendingBuffer() && paddles < 3 ) { // break condition
-  //   protocol.resetSendBuffer();
-  //   paddleBreakIsPending = true ;
-  //   buffer = 0;
-  // }
-  // if paddle break occurred, wait until paddles are released
   if( paddleBreakIsPending ) {
     wasTouched = true ;
     delay(10);
@@ -167,7 +164,9 @@ void PaddleInterface::check(byte paddleValue)
     }
     return ; // do nothing while break did not complete
   }
-
+  // if( commandMode.isActive && paddles == 3 && buffer == 0 ) { // decode character if idle
+  //   morseEngine.decodeKeyedCharacter();
+  // }
   paddles = paddles & (config.isPaddleSwapped ? (paddleValue == DIT ? DAH : DIT) : paddleValue);
   if (paddles == 0) 
   {
@@ -202,12 +201,12 @@ void PaddleInterface::serviceBuffers()
     if (buffer & DIT)
     {
       buffer &= ~DIT; // reset buffer
-      morseEngine.sendMorseElement(DIT);
+      morseEngine.sendMorseElement(DIT, true);
     }
     if (buffer & DAH)
     {
       buffer &= ~DAH;
-      morseEngine.sendMorseElement(DAH);
+      morseEngine.sendMorseElement(DAH, true);
     }
   }
 }

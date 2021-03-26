@@ -14,6 +14,7 @@
 #include "protocol.h"
 #include "paddle_interface.h"
 #include "keyer_interface.h"
+#include "command_mode.h"
 #include "morse.h"
 
 MorseEngine morseEngine = MorseEngine();
@@ -171,38 +172,29 @@ unsigned int MorseEngine::utf8ToCode(byte prefix, byte utf8Char)
 }
 
 /** Send DIT & send DAH in a single function and using only integer arithmetic
- * @param element DIT or 0 = dit, anything else = dah
+ * @param element DIT or 1 = dit, anything else = dah
+ * @param collect (optional, default false) if true, element will be collected for subsequent character decode
  **/
-void MorseEngine::sendMorseElement(byte element) {
+void MorseEngine::sendMorseElement(byte element, bool collect) {
   unsigned int elementLength;
   unsigned int totalLength;
-  unsigned long elapsed = lastElementMs - millis();
-  bool isPaddleSending = !protocol.isSendingBuffer();
 
-  /* if time elapsed since last element + element space > 1.5 unit, convert character
-    * the actual conversion takes place in holdElementDuration() because there is
-    * plenty of time to complete the complex transformation
-    **/
-  if( elapsed * wpm / 1200 > 150 ) {
-    lastMorseCode = morseCodeEmitted ; // prepare morse code for conversion
-    morseCodeEmitted = 0x01 ;          // prepare empty morse code for new collection
-  }
-  if ( isPaddleSending && morseCodeEmitted == 0) { morseCodeEmitted = 0x01; } // set start bit
+  if ( collect && morseCodeEmitted == 0) { morseCodeEmitted = 0x01; } // set start bit
   if (element == DIT) // DIT
   {
     keyerInterface.currentlyEmitting = EMIT_DIT;
     elementLength = 100 * config.weightingPct / 50;
     totalLength = 200;
-    if (isPaddleSending)
+    if (collect)
     {
       morseCodeEmitted *= 2;
     } // shift morse code for decoder, LSB set to 0 (dit)
   }
-  else  {
+  else if(element == DAH) {
     keyerInterface.currentlyEmitting = EMIT_DAH;
     elementLength = 6 * config.weightingPct ; // dah:dit = 300, 300 / 50 = 6
     totalLength = 400;
-    if (isPaddleSending)
+    if (collect)
     {
       morseCodeEmitted = (morseCodeEmitted * 2) | 0x01; // // shift morse code for decoder, LSB set to 1 (dah)
     }
@@ -236,10 +228,6 @@ void MorseEngine::sendMorseCode(word morse_code)
   }
   while (code != 0x80)
   {
-    if( paddle.wasTouched ) {
-      protocol.resetSendBuffer();
-      return ;
-    }
     next = code & 0x80;
     sendMorseElement(next == 0 ? EMIT_DIT : EMIT_DAH ); // any value next > 0 counts as dash
     code *= 2;
@@ -258,42 +246,10 @@ void MorseEngine::sendAsciiChar(byte ascii)
   unsigned int morse_code = asciiToCode(ascii);
   if (morse_code)
   {
-    paddle.enableInterrupt(); // enable paddle break
     sendMorseCode(morse_code);
   }
   else
     keyerInterface.holdElementDuration(50, wpm);
-}
-
-/**
- * @return last morse code played with paddles
- * As a side effect, the last played character is cleared
- **/
-byte MorseEngine::getLastCodeFromPaddle()
-{
-  char c = morseCodeEmitted;
-  morseCodeEmitted = 0;
-  return c;
-}
-
-/** @return pointer to decoded manually emitted string
- */
-char* MorseEngine::getDecodedString() {
-  return decodedString ;
-}
-
-/** add character to decoded string buffer
- * @param ascii character to be appended
- * **/
-void MorseEngine::appendDecodedCharacter(char ascii) {
-  if( strlen( decodedString ) < DECODER_SIZE ) {
-    byte i = 0;
-    while( i < DECODER_SIZE && decodedString[i] != 0 ) i++ ;
-    if( decodedString[i] == 0 ) {
-      decodedString[i] = ascii ;
-      decodedString[i+1] = 0;
-    }
-  }
 }
 
 /**
@@ -303,25 +259,34 @@ void MorseEngine::appendDecodedCharacter(char ascii) {
  * after the lowest morse code bit.
  * This method is called in holdElementDuration because there's plenty of time to complete.
  **/
-void MorseEngine::decodeKeyedCharacter()
+char MorseEngine::decodeKeyedCharacter()
 {
-  if( lastMorseCode == 0 ) return ; // nothing to do here
-  /* phase 1 - bit inversion */
-  unsigned int target = lastMorseCode * 0x100 + 0x80;
+  unsigned long elapsed = lastElementMs - millis();
+  /* if time elapsed since last element + element space > 1.5 unit, convert character
+    * the actual conversion takes place both paddles are up because there is
+    * plenty of time to complete the transformation
+    **/
+  if( morseCodeEmitted == 0x01 ) {
+    lastElementMs = millis();
+    return 0;
+  }
+  else if (elapsed * wpm / 1200 <= 250) return 0 ; // nothing was keyed yet
+  /* phase 1 - bit realignment */
+  unsigned int target = morseCodeEmitted * 0x100 + 0x80;
   while (target & 0xFE00)              // shift right one bit until all significant bits of the source disappear
     target /= 2;
   unsigned char morse = target & 0xFF; // mask off the leftover source stop bit
   /* phase 2 - morse code lookup in code table */
-  if (morse == 0x80) appendDecodedCharacter( ' ' ); // unlikely to happen;
+  if (morse == 0x80) commandMode.append( ' ' ); // unlikely to happen;
   unsigned int size = sizeof(CODE) / sizeof(CODE[0]);
   // look up morse code
+  morseCodeEmitted = 0x01;          // prepare empty morse code for new collection
+  lastElementMs = millis();
   for (unsigned char result = 0; result < size; result++)
   {
     if (morse == CODE[result]) {
-      appendDecodedCharacter( CODE[result] + 0x20 );
-      break ;
+      return (result + 0x20);
     }
   }
-  // if there's no match, nothing happens
-  lastMorseCode = 0 ; // clear conversion buffer
+  return 0 ;
 }

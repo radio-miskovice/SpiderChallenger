@@ -1,3 +1,6 @@
+#ifndef CORE_VARIABLES_H
+#define CORE_VARIABLES_H
+
 #include <Arduino.h>
 
 /* SPEED */
@@ -11,4 +14,5 @@ extern bool speedManualSetEnabled;
 
 extern byte wordspaceLU;
 extern byte letterspaceLU;
-extern bool isCommandMode ;
+
+#endif

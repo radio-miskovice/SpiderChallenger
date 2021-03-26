@@ -17,7 +17,8 @@ Config config = {
     .speedMaxWpm  = DEFAULT_WPM_HIGH_LIMIT,
     .paddleTriggerPtt = true,
     .weightingPct = 50,
-    .isPaddleSwapped = false
+    .isPaddleSwapped  = false,
+    .commandWpm = 25
   };
 
 void saveConfig(bool erase)
@@ -39,10 +40,10 @@ void saveConfig(bool erase)
     EEPROM.put(ptr, config);
   }
   // Beep R:
-  for (char i = 2; i > 0; i--)
+  for (char i = 3; i > 0; i--)
   {
     tone(PIN_SIDETONE, 2048);
-    delay(50 * (1 + 2 * (i % 2)));
+    delay(i==2 ? 150 : 50);
     noTone(PIN_SIDETONE);
     delay(50);
   }
