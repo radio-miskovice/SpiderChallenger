@@ -297,7 +297,7 @@ void Protocol::sendStatus(bool forceSend)
     if( fifo.hasMore() || expectCmd ) statusBits |= 0x20 ;
     statusBits |= (keyerInterface.getInterfaceStatus() << 3);
     statusBits |= paddle.wasTouched ? 0x04 : 0 ;
-    wpmByte = (speedIsSetManually ? wpm : 0) & 0x7F;
+    wpmByte = wpm & 0x7F;
     Serial.write(statusBits);
     Serial.write(wpmByte);
   }
@@ -399,4 +399,3 @@ void Protocol::reportText(byte kind)
     Serial.print("]"); // Don't change this to work seamlessly with HamRacer
   }
 }
-

@@ -14,7 +14,8 @@ CommandModeInterpreter commandMode;
  **/
 void CommandModeInterpreter::append(char c) {
   if( c!=0 && isActive ) { 
-    if (textLength < 15)  text[textLength++] = c ;
+    if (textLength < 14)  text[textLength++] = c ;
+    text[textLength] = 0; 
   }
 }
 
@@ -31,7 +32,7 @@ void CommandModeInterpreter::init() {
   isActive = true;  
   textLength = 0 ; 
   wpmSaved = wpm;
-  wpm = config.commandWpm ;
+  setSpeed(config.commandWpm) ;
   digitalWrite(PIN_MODE_LED, HIGH);
   tone(PIN_SIDETONE, 256);
   delay(125);
@@ -48,6 +49,7 @@ void CommandModeInterpreter::exit() {
     config.commandWpm = wpm ;
   }
   wpm = wpmSaved ;
+  textLength = 0;
   digitalWrite(PIN_MODE_LED, LOW);
   tone(PIN_SIDETONE, 2048);
   delay(125);
@@ -58,8 +60,10 @@ void CommandModeInterpreter::exit() {
 
 /** Check current command and execute if complete **/
 void CommandModeInterpreter::service() {
+  int w;
   if( isActive )  {
     if( textLength > 0 ) {
+      Serial.println(text);
       byte isDone = 0 ;
       switch( text[0] ) {
         case 'A' : 
@@ -71,6 +75,27 @@ void CommandModeInterpreter::service() {
           config.isPaddleSwapped = !config.isPaddleSwapped;
           isDone = 1 ;
           break;
+        case 'E':
+          w = wpmSaved ;
+          morseEngine.sendAsciiChar(' ');
+          text[2] = w % 10 + '0';
+          text[1] = (w / 10) % 10 + '0';
+          text[3] = 0;
+          morseEngine.sendString( text + 1 );
+          morseEngine.sendString( " WPM");
+          textLength = 0 ;
+          isDone = 0;
+          break;
+        case 'W': // weighting
+          if( textLength >= 3 ) {
+            w = atoi( text+1 );
+            if( w>10 && w <90 ) { 
+              config.weightingPct = w ;
+              isDone = 1;
+            }
+            else { isDone = 2 ; } // out of range
+          } else { isDone = 0 ;}  // not a complete number yet
+          break ;
         default:
           isDone = 2 ;
       }

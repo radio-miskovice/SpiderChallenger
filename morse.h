@@ -20,8 +20,9 @@ public:
   void sendMorseElement(byte element, bool collect = false ); // emit one morse element (dit or dah, followed by pause)
   void sendMorseCode(word morse_code); // emit one complete morse code character
   void sendAsciiChar(byte ascii); // convert ASCII char to morse code and emit
-//  byte getLastCodeFromPaddle(); // collect last morse char played on paddle
-  char decodeKeyedCharacter();  // decode morse character played on paddle
+  void sendString(const char *text);
+  //  byte getLastCodeFromPaddle(); // collect last morse char played on paddle
+  char decodeKeyedCharacter(); // decode morse character played on paddle
 };
 
 extern MorseEngine morseEngine ;

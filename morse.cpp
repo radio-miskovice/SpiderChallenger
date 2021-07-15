@@ -204,7 +204,7 @@ void MorseEngine::sendMorseElement(byte element, bool collect) {
   keyerInterface.setKey(LOW); // key(0);
   keyerInterface.holdElementDuration(totalLength - elementLength, wpm);
   keyerInterface.currentlyEmitting = EMIT_NONE;
-  if(!protocol.isSendingBuffer()) { lastElementMs = millis(); }
+  lastElementMs = millis();
   // letterspace_pending = true ;
 }
 
@@ -228,16 +228,20 @@ void MorseEngine::sendMorseCode(word morse_code)
   }
   while (code != 0x80)
   {
-    if( paddle.wasTouched ) {
-      protocol.resetSendBuffer();
-      return ;
-    }
     next = code & 0x80;
     sendMorseElement(next == 0 ? EMIT_DIT : EMIT_DAH ); // any value next > 0 counts as dash
     code *= 2;
   }
   // finally add letterspace
   keyerInterface.holdElementDuration(100 * (letterspaceLU - 1), wpm);
+}
+
+void MorseEngine::sendString(const char* text)
+{
+  while( (*text) != 0 ) {
+    sendAsciiChar( *text );
+    text++ ;
+  }
 }
 
 /**
@@ -281,7 +285,7 @@ char MorseEngine::decodeKeyedCharacter()
     target /= 2;
   unsigned char morse = target & 0xFF; // mask off the leftover source stop bit
   /* phase 2 - morse code lookup in code table */
-  if (morse == 0x80) commandMode.append( ' ' ); // unlikely to happen;
+  if (morse == 0x80) return( ' ' ); // unlikely to happen;
   unsigned int size = sizeof(CODE) / sizeof(CODE[0]);
   // look up morse code
   morseCodeEmitted = 0x01;          // prepare empty morse code for new collection
