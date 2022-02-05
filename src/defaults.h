@@ -1,0 +1,9 @@
+#define DEFAULT_IAMBIC_MODE          'B'
+#define DEFAULT_TONE_MANUAL_HZ       700
+#define DEFAULT_TONE_AUTO_HZ         700
+#define DEFAULT_PTT_TAIL_TIME_MS       5
+#define DEFAULT_PTT_LEAD_TIME_MS      30 
+#define DEFAULT_LETTER_SPACE_UNITS     3
+#define DEFAULT_PTT_HANG_TIME_WS_PCT  90
+#define DEFAULT_WPM_LOW_LIMIT         10
+#define DEFAULT_WPM_HIGH_LIMIT        40
