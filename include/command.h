@@ -28,7 +28,8 @@
 #define CMD_SET_PADDLES_SWAPPED 23      // Ctrl-W
 #define CMD_SAVE_CONFIG 24              // Ctrl-X
 #define CMD_STORE_MSG 25                // Ctrl-Y
-#define CMD_LAST 25
+#define CMD_FARNSWORTH 31
+#define CMD_LAST 26
 
 // Every immediate command must preceeded with this char:
 #define ESCAPE_CHAR 27

@@ -215,6 +215,7 @@ void MorseEngine::sendMorseCode(word morse_code)
 {
   byte next;
   byte code = morse_code & 0xFF;
+  isSendingBuffer = 1 ;
   if (morse_code == 0) // invalid morse code - do nothing
     return;
   if (code == 0x80) // special morse code "space" or "half space" 0x0180
@@ -234,6 +235,7 @@ void MorseEngine::sendMorseCode(word morse_code)
   }
   // finally add letterspace
   keyerInterface.holdElementDuration(100 * (letterspaceLU - 1), wpm);
+  isSendingBuffer = 0;
 }
 
 void MorseEngine::sendString(const char* text)

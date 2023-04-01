@@ -91,7 +91,7 @@ void KeyingInterface::setKey(byte state)
   else
   { // state == HIGH, KEY ON
     word pitch = config.toneManualHz;
-    if (protocol.isSendingBuffer())
+    if (isSendingBuffer != 0)
       pitch = config.toneAutoHz;
 
     if (commandMode.isActive)

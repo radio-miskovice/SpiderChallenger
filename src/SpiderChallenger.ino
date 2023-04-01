@@ -10,18 +10,18 @@
 #include "features.h"       // define features to use
 #include "pins.h"           // define pin layout of the target hardware
 #include "core.h"           // shared defines
-#include "config.h"           // config structure; TODO: merge with eeprom_config
+#include "config.h"         // config structure; TODO: merge with eeprom_config
 
-#include "morse.h"            // morse codec engine and timing control
-#include "protocol.h"         // protocol handler with integrated send buffer and command processor (Spider Protocol v. 2)
-#include "command_mode.h"     // command mode interpreter
+#include "morse.h"          // morse codec engine and timing control
+#include "protocol.h"       // protocol handler with integrated send buffer and command processor (Spider Protocol v. 2)
+#include "command_mode.h"   // command mode interpreter
 
 // HW interfaces
 #include "paddle_interface.h" // paddle interface (port and interrupt definitions and handling)
 #include "keyer_interface.h"  // keyer & PTT interface (port definitions and handling)
 #include "speed_control.h"    // polymorphic speed control (potentiometer or rotary encoder)
-#include "analog_button.h"    // TODO: create polymorphic button handler
-#include "powerbank.h"        // powerbank dummy load management
+#include "mode_button.h"      // TODO: create polymorphic button handler
+// #include "powerbank.h"     // powerbank dummy load management
 
 
 
@@ -34,8 +34,9 @@ bool speedManualSetEnabled = true ;
 
 /* KEYER MODE AND KEYING PARAMETERS */
 
-byte wordspaceLU = 6;
+byte wordspaceLU = 7;
 byte letterspaceLU = 3;
+byte isSendingBuffer = 0;
 
 /* SENDING MODE */
 // bool isCommandMode = false;
@@ -49,19 +50,22 @@ unsigned long last_powerbank;
 void setup()
 {
   Serial.begin(57600); // primary_serial_port_baud_rate
+  #ifdef _HW_CHALLENGER_V1
+  Serial.println("Challenger HW");
+  #endif
   // Serial.println("Challenger.");
   // unsigned long initTime = millis();
   // command mode LED
   commandMode.setup();
   paddle.setup();
   keyerInterface.setup();
-  powerBank.setup();
+  // powerBank.setup();
   // KEY line
   
   pinMode(PIN_SIDETONE, OUTPUT);
   digitalWrite(PIN_SIDETONE, LOW);
   digitalWrite(PIN_MODE_LED, HIGH);
-  loadConfig();
+  // loadConfig();
   speedControl->init();
   speedControl->setMaxValue( config.speedMaxWpm );
   speedControl->setMinValue( config.speedMinWpm );
@@ -70,12 +74,14 @@ void setup()
   // Serial.print("Setup completed in ");
   // Serial.print( millis() - initTime );
   // Serial.println(" ms");
+  // digitalWrite(PIN)
   tone(PIN_SIDETONE, 512);
-  delay(46);
+  delay(100);
   tone(PIN_SIDETONE, 1024);
-  delay(184);
+  delay(100);
   noTone(PIN_SIDETONE);
   digitalWrite(PIN_MODE_LED, LOW);
+  morseEngine.sendString("HI");
 }
 
 /* Main loop */
@@ -121,7 +127,7 @@ void resetInterfaces()
 /**
  * 
  **/
-void setSpeed(word wpm_set)
+void setSpeed(uint16_t wpm_set)
 { bool isChanged ;
   if (wpm_set < config.speedMinWpm)
     wpm_set = config.speedMinWpm;

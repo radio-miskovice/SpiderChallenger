@@ -6,7 +6,7 @@
  **/
 #include <Arduino.h>
 #include "pins.h"
-#include "analog_button.h"
+#include "mode_button.h"
 #include "core_variables.h"
 #include "core.h"
 #include "protocol.h"
@@ -26,8 +26,14 @@ void checkAnalogButton() {
     lastButtonReadMs = 0 ;
     return ; // do not do anything until event is cleared
   }
+  
+  #ifdef USE_BUTTON_DIGITAL
+  pressed = digitalRead( PIN_ROTARY_SWITCH ) ;
+  #else
   if( millis() - lastButtonReadMs < ANALOG_BTN_READ_INTERVAL ) return ; // do not do anything until the minimum period elapsed
   pressed = analogRead( PIN_ROTARY_SWITCH ) < 100 ;
+  #endif
+
   // if the vale is the same, do nothing
   if( isButtonPressed ) {
     if( pressed ) return ; // was pressed and remains pressed

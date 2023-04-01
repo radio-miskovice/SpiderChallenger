@@ -267,8 +267,14 @@ void Protocol::execute(byte command, byte data, bool isBuffered)
     configIsDirty = true;
     break;
 
+  case CMD_FARNSWORTH:
+    data = ( data % 10 ) ;
+    letterspaceLU = 3 * (data + 1) ;
+    wordspaceLU = 7 * (data + 1) ;
+    break ;
+
   case CMD_SAVE_CONFIG:
-    saveConfig(!data); // data == 0 will erase old configuration
+    // saveConfig(!data); // data == 0 will erase old configuration
     break;
 
   case CMD_STORE_MSG:

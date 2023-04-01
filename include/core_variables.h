@@ -12,7 +12,8 @@ extern bool speedManualSetEnabled;
 
 /* KEYER MODE AND KEYING PARAMETERS */
 
-extern byte wordspaceLU;
-extern byte letterspaceLU;
+extern byte wordspaceLU;   // real word space in length units (default = 7)
+extern byte letterspaceLU; // real letter space in length units (default = 3)
+extern byte isSendingBuffer;
 
 #endif

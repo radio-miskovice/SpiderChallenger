@@ -15,7 +15,7 @@
 #define EMIT_DIT 1
 #define EMIT_DAH 2
 
-void setSpeed(word wpm_set);
+void setSpeed(uint16_t wpm_set);
 void resetInterfaces();
 
 #endif
