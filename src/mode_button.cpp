@@ -26,11 +26,11 @@ void checkAnalogButton() {
     lastButtonReadMs = 0 ;
     return ; // do not do anything until event is cleared
   }
+  if( millis() - lastButtonReadMs < ANALOG_BTN_READ_INTERVAL ) return ; // do not do anything until the minimum period elapsed
   
   #ifdef USE_BUTTON_DIGITAL
   pressed = digitalRead( PIN_ROTARY_SWITCH ) ;
   #else
-  if( millis() - lastButtonReadMs < ANALOG_BTN_READ_INTERVAL ) return ; // do not do anything until the minimum period elapsed
   pressed = analogRead( PIN_ROTARY_SWITCH ) < 100 ;
   #endif
 
