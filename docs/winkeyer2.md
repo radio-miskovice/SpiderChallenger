@@ -4,7 +4,7 @@
 
 |  command |  expects | function | parameters | return | note |
 |----------|----------|----------|------------|--------|------|
-| 0x00       | const 0xFF  | Calibrate     | const byte EOF  | null   | obsolete, no effect |
+| 0x00 | 1 byte  | Calibrate     | const byte EOF  | null   | obsolete, no effect |
 | 0x01 | - | Reset | null | null | |
 | 0x02 | - | Host Open  | null | revision | |
 | 0x03 | - | Host Close | null | null | |
