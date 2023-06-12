@@ -8,7 +8,7 @@
 #include <Arduino.h>
 
 #include "pins.h"
-#include "core_variables.h" // need sending_mode
+// #include "core_variables.h" // need sending_mode
 #include "core.h"           // need control_element_duration()
 #include "config.h"
 #include "protocol.h"
@@ -109,6 +109,10 @@ const byte CODE[] = {
 
 unsigned long last_element_ms = 0 ;
 
+word MorseEngine::getWpm() { return wpm; }
+void MorseEngine::setWpm(word newWpm) { if( newWpm >=5 && newWpm < 100) wpm = newWpm; }
+byte MorseEngine::getWeighting() { return weightingPct ; }
+void MorseEngine::setWeighting(byte weighting) { if(weighting >=10 && weighting <= 90) weightingPct = weighting; }
 
 /**
  * @param ascii ASCII letter to be converted

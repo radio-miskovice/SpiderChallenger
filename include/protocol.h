@@ -19,7 +19,7 @@ class Protocol {
     Protocol();
     bool isNotCommand(char rcvd);
     void checkInput();
-    void execute(byte command, byte data, bool isBuffered);
+    void executeCommand(byte command, byte data, bool isBuffered);
     bool isSendingBuffer();
     void reportText(byte kind);
     void resetSendBuffer();

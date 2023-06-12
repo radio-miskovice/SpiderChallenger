@@ -1,32 +1,38 @@
 #include <Arduino.h>
 #include "send_buffer.h"
+#include "utilities.h"
+#include "config.h"
+// #include "core_variables.h"
+#include "morse.h"
 
-enum FetchProgressPhase : byte { FETCH_ANY, EXPECT_SUFFIX, EXPECT_PARAMS, EXECUTE };
+enum FetchProgressPhase : byte { FETCH_ANY, EXPECT_CMD, EXPECT_PARAMS, EXECUTE };
+enum WinkeyStatusMode : byte { WK1, WK2 };
+const word WINKEY_SIDETONE_FREQ = 4000 ;
+
 class WinkeyProtocol {
-  // winkey status
   private:
+    static const byte WK_REVISION = 22 ; // Winkey protocol revision number
     FetchProgressPhase phase = FETCH_ANY;
-    byte bytesExpected ; // total bytes to be read into cmdBuffer
-    bool readingCommand = false ;
-    byte isHostOpen ;
-    byte bytesFetched = 0 ;
-    byte cmdBuffer[16];
-    word command ;
-    byte cmdLength = 0;
-    bool canSendStatus = false;
+    WinkeyStatusMode wkStatusMode = WK1 ;
+    byte bytesExpected ;    // total bytes to be read into cmdParam
+    byte bytesFetched = 0 ; // total bytes fetched into cmdParam
+    word command ;          // command bytes, prefix = MSB
+    byte cmdParam[16];      // command parameter(s)
+    byte _isHostOpen ;
+    bool _isStatusDirty = false;
     word wasResponded = 0;
-    void respondZero() ;
+    bool _sidetonePaddleOnly = false ;
     void ignore();
-    void executeAdminCommand();
-    void executeKeyerCommand();
-
+    void setSidetone(byte);
+    void setWpmSpeed(byte);
+    void setWeighting(byte);
 public:
   bool expectCmd = false;
   CharacterFIFO fifo;
   WinkeyProtocol();
-  bool isNotCommand(char rcvd);
+  bool isHostOpen();
   void checkInput();
-  void execute();
+  void executeCommand();
   bool isSendingBuffer();
   void reportText(byte kind);
   void resetSendBuffer();
@@ -37,6 +43,11 @@ public:
   void serviceSendBuffer();
   void storeMessage(byte data);
 };
+
+/**
+ * @returns {bool} true if host is open, false otherwise
+ */
+bool WinkeyProtocol::isHostOpen() { return _isHostOpen ; }
 
 /**
  * Reads serial port if character is available, except if previous character is still waiting to be processed.
@@ -57,12 +68,12 @@ void WinkeyProtocol::checkInput() {
         if( input < 2 ) {
           command = input ;         // copy byte into word
           command = command * 256 ; // shift command prefix 8 bits up
-          phase = EXPECT_SUFFIX ;
+          phase = EXPECT_CMD ;
         }
         // otherwise push it to text buffer
         else { fifo.push(input); } 
         break ;
-      case EXPECT_SUFFIX:
+      case EXPECT_CMD:
         command = command + input ; // complete command code
         bytesFetched = 0 ;
         switch( commandCode ) {
@@ -105,31 +116,75 @@ void WinkeyProtocol::checkInput() {
               bytesExpected = 0 ;
         }
         if( bytesExpected > 0 ) { phase = EXPECT_PARAMS ; }
-        else { phase = EXECUTE ; cmdBuffer[0] = 0 ; }
+        else { phase = EXECUTE ; cmdParam[0] = 0 ; }
         break ;
       case EXPECT_PARAMS:
         if( bytesExpected > 0 ) {
-          cmdBuffer[ bytesFetched ] = input ;
+          cmdParam[ bytesFetched ] = input ;
           bytesFetched++ ;
           if( command == 0x0116 && bytesFetched == 1 && input == 3 ) bytesExpected++ ; // command Buffer Pointer Command has extra byte if parameter == 3
           bytesExpected-- ;
         }
         if( bytesExpected == 0 ) phase = EXECUTE ;
     }
+    canReadMore = (phase != EXECUTE) && (fifo.canTake() || phase != FETCH_ANY);
   }
 }
 
-void WinkeyProtocol::execute() {
+/**
+ * Execute command fetched in command buffer
+ */
+void WinkeyProtocol::executeCommand() {
   if( phase != EXECUTE ) return ;
   // TODO: execute command
   switch( command ) {
-  case 0x04: // Admin: Send Echo
+  case 0x04: // Admin: Send Echo - cmdParam[0] contains character to be echoed
   case 0x05: // Admin: Paddle A2D
   case 0x06: // Admin: Speed A2D
   case 0x09: // Admin: Get Calibration
-    sendResponse(cmdBuffer[0]);
+    sendResponse(cmdParam[0]); // cmdParam[0] contains zero in commands with no params
+    break;
+  // Reset
+  case 0x01:
+    reboot_cpu();
+    break;
+  // Host Open
+  case 0x02:
+    _isHostOpen = true;
+    sendResponse(WK_REVISION);
+    break; 
+  // Host Close
+  case 0x03:
+    _isHostOpen = false;
+    break;
+  // Status Mode WK1
+  case 0x0A:
+    wkStatusMode = WK1;
+    break;
+  // Status Mode WK2
+  case 0x0B:
+    wkStatusMode = WK2;
+    break;
+  // Sidetone Control
+  case 0x101:
+    _sidetonePaddleOnly = (cmdParam[0] & 0x80) != 0 ;
+    cmdParam[0] = cmdParam[0] & 0x0F ;
+    if( cmdParam[0] != 0 ) {
+      config.toneManualHz = 4000 / cmdParam[0] ;
+      if( ! _sidetonePaddleOnly ) config.toneAutoHz = config.toneManualHz ;
+      else config.toneAutoHz = 0 ;
+    }
+    break ;
+  // set WPM
+  case 0x102:
+    morseEngine.setWpm(cmdParam[0]) ;
+    break ;
+  // set weighting
+  case 0x103:
+    morseEngine.setWeighting(cmdParam[0]);
     break;
 
+  // all unimplemented commands w/o response  
   default:
     ignore();
   }
@@ -137,8 +192,4 @@ void WinkeyProtocol::execute() {
 }
 
 void WinkeyProtocol::ignore() {
-}
-
-void WinkeyProtocol::respondZero() {
-  sendResponse(0);
 }

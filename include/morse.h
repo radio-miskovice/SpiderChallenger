@@ -13,6 +13,11 @@ private:
   
   byte morseCodeEmitted = 1 ; // collected morse character for morse decoder
   unsigned long lastElementMs = 0 ;
+  word wpm ;
+  byte wordspaceLU = 3 ;
+  byte letterspaceLU = 1 ; 
+  byte weightingPct = 50 ;
+  bool isSendingBuffer = false ;
 
 public:
   unsigned int asciiToCode(byte ascii); // convert printable ASCII char to morse code
@@ -23,6 +28,10 @@ public:
   void sendString(const char *text);
   //  byte getLastCodeFromPaddle(); // collect last morse char played on paddle
   char decodeKeyedCharacter(); // decode morse character played on paddle
+  word getWpm() ;
+  void setWpm( word );
+  void setWeighting(byte);
+  byte getWeighting();
 };
 
 extern MorseEngine morseEngine ;

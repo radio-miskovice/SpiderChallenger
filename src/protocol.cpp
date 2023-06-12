@@ -46,7 +46,7 @@ bool Protocol::isNotCommand(char rcvd)
     {
       cmdLength = 0;
       expectCmd = false;
-      execute(cmdBuffer[0], cmdBuffer[1], false);
+      executeCommand(cmdBuffer[0], cmdBuffer[1], false);
     }
     return false; // it was command
   }
@@ -91,7 +91,7 @@ void Protocol::checkInput() {
  * @param data command data
  * @param isBuffered set to true if the commend was fetched from FIFO
  */
-void Protocol::execute(byte command, byte data, bool isBuffered)
+void Protocol::executeCommand(byte command, byte data, bool isBuffered)
 {
   switch (command)
   {
@@ -322,7 +322,7 @@ void Protocol::serviceSendBuffer()
       if (fifo.hasMore())
       {
         char data = fifo.shift();
-        execute(c, data, true);
+        executeCommand(c, data, true);
       }
       else
         fifo.unshift(); // if the second byte is not available, return the first byte back to FIFO
