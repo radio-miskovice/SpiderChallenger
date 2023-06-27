@@ -1,0 +1,36 @@
+@startuml Architecture
+
+Potentiometer <|-- SpeedController
+RotaryEncoder <|-- SpeedController
+
+SpeedController : value
+SpeedController : minValue
+SpeedController : maxValue
+SpeedController : hasChanged
+SpeedController : virtual init()
+SpeedController : virtual update()
+SpeedController : getValue()
+SpeedController : setMaxValue()
+SpeedController : setMinValue()
+
+note left 
+ keeps data about 
+ speed setting 
+ set by control
+end note
+
+class KeyingInterface
+KeyingInterface : bool isPttForced
+KeyingInterface : bool isPttEnabled
+KeyingInterface : word pttTime
+KeyingInterface : word pttLastEventMs
+KeyingInterface : byte pttState 
+KeyingInterface : byte keyState 
+KeyingInterface : bool isKeyEnabled 
+
+note right 
+ This is only
+ hardware interface abstraction
+end note 
+
+@enduml
